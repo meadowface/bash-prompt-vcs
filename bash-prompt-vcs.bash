@@ -103,6 +103,10 @@ function bpvcs_svn_state() {
     return 1
 }
 
+BPVCS_UNTRACKED_INDICATOR="…"
+BPVCS_CHANGED_INDICATOR="△"
+BPVCS_STAGED_INDICATOR="●"
+
 BPVCS_GIT_COLOR="\033[0;32m"
 BPVCS_HG_COLOR="\033[0;36m"
 BPVCS_SVN_COLOR="\033[0;35m"
@@ -113,9 +117,9 @@ function bpvcs_bash_prompt() {
 
     #TODO: have an errors flag too incase vc returns something unparsable.
     vcstate=""
-    (( untracked )) && vcstate="$vcstate…$untracked"
-    (( changed ))   && vcstate="$vcstate△$changed"
-    (( staged ))    && vcstate="$vcstate●$staged"
+    (( untracked )) && vcstate="$vcstate$BPVCS_UNTRACKED_INDICATOR$untracked"
+    (( changed ))   && vcstate="$vcstate$BPVCS_CHANGED_INDICATOR$changed"
+    (( staged ))    && vcstate="$vcstate$BPVCS_STAGED_INDICATOR$staged"
     if [ -z $vcstate ]; then
         vcstate="✔"
     fi
