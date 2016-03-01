@@ -1,0 +1,105 @@
+#!/bin/bash
+
+source bash-prompt-vcs.bash
+
+#TODO: check that function exists
+#TODO: check default of color var
+
+
+tmpdir=$(mktemp -d)
+
+function check() {
+    echo -n "$1: "
+    prompt=$(bpvcs_bash_prompt)
+    if [ "$prompt" = "$2" ]; then
+        echo "OK."
+    else
+        echo "FAILED. Expected: '$2' got '$prompt'"
+    fi
+
+}
+
+function test_none() {
+    cd "$tmpdir"
+    check "none" ""
+}
+
+function run_git() {
+    git "$@" >/dev/null || echo "git run failed"
+}
+
+function test_git() {
+    gitdir=$(mktemp -d --tmpdir=$tmpdir)
+    cd "$gitdir"
+
+    run_git init
+    check "git init" " git:(Initial commit on master|✔)"
+
+    echo "First post!" >first.txt
+    run_git add first.txt
+    check "git add" " git:(Initial commit on master|●1)"
+
+    run_git commit -m first
+    check "git added" " git:(master|✔)"
+
+    echo "No tracked" >"$gitdir/notme"
+    check "git untracked" " git:(master|…1)"
+
+    echo "Changed!" >first.txt
+    check "git change" " git:(master|…1△1)"
+
+    echo "toooooo" >second.txt
+    check "git various" " git:(master|…2△1)"
+
+    run_git add second.txt
+    check "git staged" " git:(master|…1△1●1)"
+
+    run_git commit -m "moar files"
+    check "git commit part" " git:(master|…1△1)"
+
+    run_git mv second.txt 2nd.txt
+    check "git rename" " git:(master|…1△1●1)"
+
+    run_git commit -a -m "save it all"
+    check "git almost clean" " git:(master|…1)"
+
+    echo "notme" >"$gitdir/.gitignore"
+    check "git ignore" " git:(master|…1)"
+
+    run_git add ".gitignore"
+    run_git commit ".gitignore" -m "nothing to see here"
+    check "git faux clean" " git:(master|✔)"
+
+    rm "$gitdir/notme"
+    check "git clean" " git:(master|✔)"
+
+    run_git checkout -b riskychange
+    check "git branch" " git:(riskychange|✔)"
+
+    run_git checkout master
+    check "git master" " git:(master|✔)"
+
+    function git() {
+        echo "Nonesense"
+    }
+    check "git bad status" ""
+
+    unset git
+    check "git back to good" " git:(master|✔)"
+}
+
+function test_hg() {
+    echo TODO
+}
+
+function test_svn() {
+    echo TODO
+}
+
+unset color_vcs_bash_prompt
+test_none
+test_git
+if [ -n "$tmpdir" ]; then
+    rm -rf "$tmpdir"
+fi
+
