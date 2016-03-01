@@ -55,11 +55,11 @@ function bpvcs_hg_state() {
             local item
             while IFS= read -r -d ',' item; do
                 item="${item## }"
-                item="${item% (clean)}"
+                item="${item%% (*)}"
                 local count="${item/ */}"
                 local kind="${item/* /}"
                 case $kind in
-                    modified|added) ((changed += count)) ;;
+                    modified|added|renamed) ((changed += count)) ;;
                     unknown)  ((untracked += count)) ;;
                 esac
             done  <<< "${line/*?: /},"  #NOTE: need the trailing comma for read
