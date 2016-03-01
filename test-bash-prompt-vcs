@@ -1,12 +1,13 @@
 #!/bin/bash
 
-source bash-prompt-vcs.bash
-
 #TODO: check that function exists
 
 function check() {
     echo -n "$1: "
-    prompt=$(bpvcs_bash_prompt)
+    # Run functio once to gather output to check and then again
+    # in the local symbol space to help check for symbol leakage.
+    local prompt=$(bpvcs_bash_prompt)
+    bpvcs_bash_prompt >/dev/null
     if [ "$prompt" = "$2" ]; then
         echo "OK."
     else
@@ -27,7 +28,7 @@ function run_git() {
 }
 
 function test_git() {
-    gitdir=$(mktemp -d --tmpdir=$tmpdir test_git.XXX)
+    local gitdir=$(mktemp -d --tmpdir=$tmpdir test_git.XXX)
     cd "$gitdir"
 
     run_git init
@@ -91,7 +92,7 @@ function run_hg() {
 }
 
 function test_hg() {
-    hgdir=$(mktemp -d --tmpdir=$tmpdir test_hg.XXX)
+    local hgdir=$(mktemp -d --tmpdir=$tmpdir test_hg.XXX)
     cd "$hgdir"
 
     run_hg init
@@ -159,7 +160,7 @@ function run_svn() {
 }
 
 function test_svn() {
-    svndir=$(mktemp -d --tmpdir=$tmpdir test_svn.XXX)
+    local svndir=$(mktemp -d --tmpdir=$tmpdir test_svn.XXX)
     cd "$svndir"
     run_svnadmin create SVNROOT
 
@@ -223,6 +224,56 @@ function test_all() {
     test_svn
 }
 
+function test_outputs() {
+    # Make a home to work in.
+    local tmpdir=$(mktemp -d --tmpdir bpvcs-test-XXX)
+
+    # Run through all of the tests with color making sure the output is
+    # wrapped correctly with color prefixes and suffixes.
+    local SUFFIX=$(echo -e "\033[0m")
+    local GIT_PREFIX=$(echo -e "$BPVCS_GIT_COLOR ")
+    local HG_PREFIX=$(echo -e "$BPVCS_HG_COLOR ")
+    local SVN_PREFIX=$(echo -e "$BPVCS_SVN_COLOR ")
+
+    test_all
+    echo
+
+    # Run all tests again, this time with colors off and making sure that the
+    # non-color prefixes are used.
+    echo Testing without colors
+    SUFFIX=""
+    GIT_PREFIX=" git:"
+    HG_PREFIX=" hg:"
+    SVN_PREFIX=" svn:"
+    unset BPVCS_COLORS
+
+    test_all
+
+    # Clean up the temp dir.
+    if [ -n "$tmpdir" ]; then
+        rm -rf "$tmpdir"
+    fi
+}
+
+function shell_state() {
+    compgen -A variable | sort
+    compgen -A function | sort
+}
+
+echo Testing sourcing and symbols
+test_bpvcs_before=$(shell_state)
+
+source bash-prompt-vcs.bash
+
+test_bpvcs_loaded=$(shell_state)
+
+test_bpvcs_new_symbols=$(diff <(printf "%s" "$test_bpvcs_before" )  <(printf "%s" "$test_bpvcs_loaded") \
+                            | grep '>' \
+                            | grep -v '^> PIPESTATUS$' \
+                            | grep -v '^> test_bpvcs_')
+echo "$test_bpvcs_new_symbols"
+echo
+
 # Confirm these rather than using the variables up above so the tests remain
 # somewhat readable and useful for looking at to see what the code will output.
 echo Testing default indicators
@@ -230,39 +281,26 @@ if [ "$BPVCS_UNTRACKED_INDICATOR" != "…" ]; then echo "Wrong default untracked
 if [ "$BPVCS_CHANGED_INDICATOR" != "△" ]; then echo "Wrong default changed indicator"; exit; fi
 if [ "$BPVCS_STAGED_INDICATOR" != "●" ]; then echo "Wrong default staged indicator"; exit; fi
 if [ "$BPVCS_CLEAN_INDICATOR" != "✔" ]; then echo "Wrong default clean indicator"; exit; fi
+echo
 
 # Make sure we have default colors defined and that we default to using color.
-echo Testing with default colors
+echo Testing default colors
 if [ -z "$BPVCS_GIT_COLOR" ]; then echo "No GIT default color!"; exit; fi
 if [ -z "$BPVCS_HG_COLOR" ]; then echo "No HG default color!"; exit; fi
 if [ -z "$BPVCS_SVN_COLOR" ]; then echo "No SVN default color!"; exit; fi
 if [ -z "$BPVCS_COLORS" ]; then echo "No default color!"; exit; fi
 
-# Make a home to work in.
-tmpdir=$(mktemp -d --tmpdir bpvcs-test-XXX)
-
-# Run through all of the tests with color making sure the output is
-# wrapped correctly with color prefixes and suffixes.
-SUFFIX=$(echo -e "\033[0m")
-GIT_PREFIX=$(echo -e "$BPVCS_GIT_COLOR ")
-HG_PREFIX=$(echo -e "$BPVCS_HG_COLOR ")
-SVN_PREFIX=$(echo -e "$BPVCS_SVN_COLOR ")
-
-test_all
+test_outputs
 echo
 
-# Run all tests again, this time with colors off and making sure that the
-# non-color prefixes are used.
-echo Testing without colors
-SUFFIX=""
-GIT_PREFIX=" git:"
-HG_PREFIX=" hg:"
-SVN_PREFIX=" svn:"
-unset BPVCS_COLORS
+echo Testing symbol leakage after all tests run
 
-test_all
+test_bpvcs_after=$(shell_state)
 
-# Clean up the temp dir.
-if [ -n "$tmpdir" ]; then
-    rm -rf "$tmpdir"
-fi
+test_bpvcs_leaked_symbols=$(diff <(printf "%s" "$test_bpvcs_loaded" )  <(printf "%s" "$test_bpvcs_after") \
+                                | grep '>' \
+                                | grep -v '^> PIPESTATUS$' \
+                                | grep -v '^> OLDPWD$' \
+                                | grep -v '^> test_bpvcs_')
+
+echo "$test_bpvcs_leaked_symbols"
