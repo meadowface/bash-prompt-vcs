@@ -90,6 +90,7 @@ function bpvcs_svn_state() {
         case "${line:0:1}" in
             A|M|R) ((changed++)) ;;
             \?)    ((untracked++)) ;;
+            " ")   if [ "${line:1:1}" = "M" ]; then ((changed++)); fi ;;
         esac
     #svn status doesn't return anything but 0, but keep the mechanism in place
     done < <(svn status --depth immediates 2>&1 || echo -e "xx: $?")
