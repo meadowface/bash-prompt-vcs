@@ -66,6 +66,11 @@ function bpvcs_hg_state() {
         fi
     done < <(hg summary 2>/dev/null || echo -e "xx: $?")
 
+    # branch: should *always* be present, if not assume bad output
+    if [ -z "$branch" ]; then
+        return 0
+    fi
+
     vcs="hg"
     return 1
 }
