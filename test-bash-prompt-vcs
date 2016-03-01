@@ -154,14 +154,78 @@ function test_hg() {
     check "hg back to good" " hg:(default|✔)"
 }
 
+function run_svnadmin() {
+    svnadmin "$@" >/dev/null || echo "svnadmin run failed"
+}
+
+function run_svn() {
+    svn "$@" >/dev/null || echo "svn run failed"
+}
+
 function test_svn() {
-    echo TODO
+    svndir=$(mktemp -d --tmpdir=$tmpdir test_svn.XXX)
+    cd "$svndir"
+    run_svnadmin create SVNROOT
+
+    run_svn checkout "file://$svndir/SVNROOT" trunk
+    cd "trunk"
+    check "svn init" " svn:(✔)"
+
+    echo "First post!" >first.txt
+    run_svn add first.txt
+    check "svn add" " svn:(△1)"
+
+    run_svn commit -m first
+    check "svn added" " svn:(✔)"
+
+    echo "No tracked" >"$svndir/trunk/notme"
+    check "svn untracked" " svn:(…1)"
+
+    echo "Changed!" >first.txt
+    check "svn change" " svn:(…1△1)"
+
+    echo "toooooo" >second.txt
+    check "svn various" " svn:(…2△1)"
+
+    run_svn add second.txt
+    check "svn add second" " svn:(…1△2)"
+
+    run_svn commit -m "moar files"
+    check "svn commit" " svn:(…1)"
+
+    run_svn rename second.txt 2nd.txt
+    check "svn rename" " svn:(…1△1)"
+
+    run_svn commit -m "save it all"
+    check "svn almost clean" " svn:(…1)"
+
+    run_svn propset svn:ignore "notme" .
+    check "svn ignore" " svn:(△1)"
+
+    # NOTE: The update is needed!
+    # See http://subversion.apache.org/faq.html#wc-out-of-date
+    run_svn update
+    run_svn commit -m "nothing to see here"
+    check "svn faux clean" " svn:(✔)"
+
+    rm "$svndir/trunk/notme"
+    check "svn clean" " svn:(✔)"
+
+    function svn() {
+        echo "Nonesense"
+    }
+    check "svn bad status" ""
+
+    unset svn
+    check "svn back to good" " svn:(✔)"
 }
 
 unset color_vcs_bash_prompt
 test_none && \
 test_git && \
-test_hg
+test_hg && \
+test_svn
+
 if [ -n "$tmpdir" ]; then
     rm -rf "$tmpdir"
 fi
