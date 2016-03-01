@@ -4,8 +4,6 @@ source bash-prompt-vcs.bash
 
 #TODO: check that function exists
 
-tmpdir=$(mktemp -d --tmpdir bpvcs-test-XXX)
-
 function check() {
     echo -n "$1: "
     prompt=$(bpvcs_bash_prompt)
@@ -233,20 +231,28 @@ if [ "$BPVCS_CHANGED_INDICATOR" != "△" ]; then echo "Wrong default changed ind
 if [ "$BPVCS_STAGED_INDICATOR" != "●" ]; then echo "Wrong default staged indicator"; exit; fi
 if [ "$BPVCS_CLEAN_INDICATOR" != "✔" ]; then echo "Wrong default clean indicator"; exit; fi
 
+# Make sure we have default colors defined and that we default to using color.
 echo Testing with default colors
 if [ -z "$BPVCS_GIT_COLOR" ]; then echo "No GIT default color!"; exit; fi
 if [ -z "$BPVCS_HG_COLOR" ]; then echo "No HG default color!"; exit; fi
 if [ -z "$BPVCS_SVN_COLOR" ]; then echo "No SVN default color!"; exit; fi
 if [ -z "$BPVCS_COLORS" ]; then echo "No default color!"; exit; fi
 
+# Make a home to work in.
+tmpdir=$(mktemp -d --tmpdir bpvcs-test-XXX)
+
+# Run through all of the tests with color making sure the output is
+# wrapped correctly with color prefixes and suffixes.
 SUFFIX=$(echo -e "\033[0m")
 GIT_PREFIX=$(echo -e "$BPVCS_GIT_COLOR ")
 HG_PREFIX=$(echo -e "$BPVCS_HG_COLOR ")
 SVN_PREFIX=$(echo -e "$BPVCS_SVN_COLOR ")
 
 test_all
-
 echo
+
+# Run all tests again, this time with colors off and making sure that the
+# non-color prefixes are used.
 echo Testing without colors
 SUFFIX=""
 GIT_PREFIX=" git:"
@@ -256,6 +262,7 @@ unset BPVCS_COLORS
 
 test_all
 
+# Clean up the temp dir.
 if [ -n "$tmpdir" ]; then
     rm -rf "$tmpdir"
 fi
