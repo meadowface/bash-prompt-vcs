@@ -157,4 +157,4 @@ function install_vcs_bash_prompt() {
 
 #install_vcs_bash_prompt
 
-PS1="\[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\u@\h:\w\$(vcs_bash_prompt)\$ "
+PS1="\[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\u@\h:\w\$(bpvcs_bash_prompt)\$ "
