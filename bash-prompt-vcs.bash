@@ -103,6 +103,11 @@ function bpvcs_svn_state() {
     return 1
 }
 
+BPVCS_GIT_COLOR="\033[0;32m"
+BPVCS_HG_COLOR="\033[0;36m"
+BPVCS_SVN_COLOR="\033[0;35m"
+BPVCS_COLORS=1
+
 function bpvcs_bash_prompt() {
     bpvcs_git_state && bpvcs_hg_state && bpvcs_svn_state
 
@@ -116,14 +121,14 @@ function bpvcs_bash_prompt() {
     fi
 
     case "$vcs" in
-        git)  color="\033[0;32m "; vcstate="($branch|$vcstate)" ;;
-        hg)   color="\033[0;36m "; vcstate="($branch|$vcstate)" ;;
-        svn)  color="\033[0;35m "; vcstate="($vcstate)" ;;
+        git)  color="$BPVCS_GIT_COLOR "; vcstate="($branch|$vcstate)" ;;
+        hg)   color="$BPVCS_HG_COLOR "; vcstate="($branch|$vcstate)" ;;
+        svn)  color="$BPVCS_SVN_COLOR "; vcstate="($vcstate)" ;;
         *)    color=''; vcstate=''; return ;;
     esac
     resetcolor="\033[0m"
 
-    if [ -z "$color_vcs_bash_prompt" ]; then
+    if [ -z "$BPVCS_COLORS" ]; then
         color=" $vcs:"
         resetcolor=""
     fi
@@ -146,7 +151,6 @@ function install_vcs_bash_prompt() {
     fi
 }
 
-color_vcs_bash_prompt=1
 #install_vcs_bash_prompt
 
 PS1="\[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\u@\h:\w\$(vcs_bash_prompt)\$ "
