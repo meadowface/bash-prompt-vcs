@@ -6,7 +6,7 @@ source bash-prompt-vcs.bash
 #TODO: check default of color var
 
 
-tmpdir=$(mktemp -d)
+tmpdir=$(mktemp -d --tmpdir bpvcs-test-XXX)
 
 function check() {
     echo -n "$1: "
@@ -15,6 +15,8 @@ function check() {
         echo "OK."
     else
         echo "FAILED. Expected: '$2' got '$prompt'"
+        echo $tmpdir
+        exit
     fi
 
 }
@@ -29,7 +31,7 @@ function run_git() {
 }
 
 function test_git() {
-    gitdir=$(mktemp -d --tmpdir=$tmpdir)
+    gitdir=$(mktemp -d --tmpdir=$tmpdir test_git.XXX)
     cd "$gitdir"
 
     run_git init
@@ -88,8 +90,68 @@ function test_git() {
     check "git back to good" " git:(master|✔)"
 }
 
+function run_hg() {
+    hg "$@" >/dev/null || echo "hg run failed"
+}
+
 function test_hg() {
-    echo TODO
+    hgdir=$(mktemp -d --tmpdir=$tmpdir test_hg.XXX)
+    cd "$hgdir"
+
+    run_hg init
+    check "hg init" " hg:(default|✔)"
+
+    echo "First post!" >first.txt
+    run_hg add first.txt
+    check "hg add" " hg:(default|△1)"
+
+    run_hg commit -m first
+    check "hg added" " hg:(default|✔)"
+
+    echo "No tracked" >"$hgdir/notme"
+    check "hg untracked" " hg:(default|…1)"
+
+    echo "Changed!" >first.txt
+    check "hg change" " hg:(default|…1△1)"
+
+    echo "toooooo" >second.txt
+    check "hg various" " hg:(default|…2△1)"
+
+    run_hg add second.txt
+    check "hg add second" " hg:(default|…1△2)"
+
+    run_hg commit -m "moar files"
+    check "hg commit" " hg:(default|…1)"
+
+    run_hg rename second.txt 2nd.txt
+    check "hg rename" " hg:(default|…1△1)"
+
+    run_hg commit -m "save it all"
+    check "hg almost clean" " hg:(default|…1)"
+
+    echo "notme" >"$hgdir/.hgignore"
+    check "hg ignore" " hg:(default|…1)"
+
+    run_hg add ".hgignore"
+    run_hg commit ".hgignore" -m "nothing to see here"
+    check "hg faux clean" " hg:(default|✔)"
+
+    rm "$hgdir/notme"
+    check "hg clean" " hg:(default|✔)"
+
+    run_hg branch riskychange
+    check "hg branch" " hg:(riskychange|✔)"
+
+    run_hg branch --clean
+    check "hg default again" " hg:(default|✔)"
+
+    function hg() {
+        echo "Nonesense"
+    }
+    check "hg bad status" ""
+
+    unset hg
+    check "hg back to good" " hg:(default|✔)"
 }
 
 function test_svn() {
@@ -97,8 +159,9 @@ function test_svn() {
 }
 
 unset color_vcs_bash_prompt
-test_none
-test_git
+test_none && \
+test_git && \
+test_hg
 if [ -n "$tmpdir" ]; then
     rm -rf "$tmpdir"
 fi
