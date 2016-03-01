@@ -271,7 +271,25 @@ test_bpvcs_new_symbols=$(diff <(printf "%s" "$test_bpvcs_before" )  <(printf "%s
                             | grep '>' \
                             | grep -v '^> PIPESTATUS$' \
                             | grep -v '^> test_bpvcs_')
-echo "$test_bpvcs_new_symbols"
+
+test_bpvcs_expected_symbols=""
+test_bpvcs_expected_symbols+=$'> BPVCS_CHANGED_INDICATOR\n'
+test_bpvcs_expected_symbols+=$'> BPVCS_CLEAN_INDICATOR\n'
+test_bpvcs_expected_symbols+=$'> BPVCS_COLORS\n'
+test_bpvcs_expected_symbols+=$'> BPVCS_GIT_COLOR\n'
+test_bpvcs_expected_symbols+=$'> BPVCS_HG_COLOR\n'
+test_bpvcs_expected_symbols+=$'> BPVCS_STAGED_INDICATOR\n'
+test_bpvcs_expected_symbols+=$'> BPVCS_SVN_COLOR\n'
+test_bpvcs_expected_symbols+=$'> BPVCS_UNTRACKED_INDICATOR\n'
+test_bpvcs_expected_symbols+=$'> bpvcs_bash_prompt'
+
+echo "$test_bpvcs_expected_symbols" >A
+echo "$test_bpvcs_new_symbols" >B
+
+if [ "$test_bpvcs_new_symbols" != "$test_bpvcs_expected_symbols" ]; then
+    echo "Unexpected symbols when loading: $test_bpvcs_new_symbols"
+    exit
+fi
 echo
 
 # Confirm these rather than using the variables up above so the tests remain
@@ -303,4 +321,7 @@ test_bpvcs_leaked_symbols=$(diff <(printf "%s" "$test_bpvcs_loaded" )  <(printf 
                                 | grep -v '^> OLDPWD$' \
                                 | grep -v '^> test_bpvcs_')
 
-echo "$test_bpvcs_leaked_symbols"
+if [ -n "$test_bpvcs_leaked_symbols" ]; then
+    echo "Unexpected symbols after tests ran: $test_bpvcs_leaked_symbols"
+    exit
+fi
