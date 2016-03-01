@@ -116,7 +116,7 @@ function bpvcs_bash_prompt() {
     bpvcs_git_state && bpvcs_hg_state && bpvcs_svn_state
 
     #TODO: have an errors flag too incase vc returns something unparsable.
-    vcstate=""
+    local vcstate=""
     (( untracked )) && vcstate="$vcstate$BPVCS_UNTRACKED_INDICATOR$untracked"
     (( changed ))   && vcstate="$vcstate$BPVCS_CHANGED_INDICATOR$changed"
     (( staged ))    && vcstate="$vcstate$BPVCS_STAGED_INDICATOR$staged"
@@ -124,13 +124,14 @@ function bpvcs_bash_prompt() {
         vcstate="$BPVCS_CLEAN_INDICATOR"
     fi
 
+    local color
     case "$vcs" in
         git)  color="$BPVCS_GIT_COLOR "; vcstate="($branch|$vcstate)" ;;
         hg)   color="$BPVCS_HG_COLOR "; vcstate="($branch|$vcstate)" ;;
         svn)  color="$BPVCS_SVN_COLOR "; vcstate="($vcstate)" ;;
         *)    color=''; vcstate=''; return ;;
     esac
-    resetcolor="\033[0m"
+    local resetcolor="\033[0m"
 
     if [ -z "$BPVCS_COLORS" ]; then
         color=" $vcs:"
