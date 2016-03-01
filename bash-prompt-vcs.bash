@@ -106,6 +106,7 @@ function bpvcs_svn_state() {
 BPVCS_UNTRACKED_INDICATOR="…"
 BPVCS_CHANGED_INDICATOR="△"
 BPVCS_STAGED_INDICATOR="●"
+BPVCS_CLEAN_INDICATOR="✔"
 
 BPVCS_GIT_COLOR="\033[0;32m"
 BPVCS_HG_COLOR="\033[0;36m"
@@ -121,7 +122,7 @@ function bpvcs_bash_prompt() {
     (( changed ))   && vcstate="$vcstate$BPVCS_CHANGED_INDICATOR$changed"
     (( staged ))    && vcstate="$vcstate$BPVCS_STAGED_INDICATOR$staged"
     if [ -z $vcstate ]; then
-        vcstate="✔"
+        vcstate="$BPVCS_CLEAN_INDICATOR"
     fi
 
     case "$vcs" in
