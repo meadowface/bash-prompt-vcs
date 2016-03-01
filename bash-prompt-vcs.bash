@@ -139,22 +139,3 @@ function bpvcs_bash_prompt() {
 
     echo -e "${color}${vcstate}${resetcolor}"
 }
-
-function install_vcs_bash_prompt() {
-    local cmd="vcs_bash_prompt"
-    IFS=';' read -r -a cmds <<< "$PROMPT_COMMAND"
-    found=0
-    for ((i=0; i < ${#cmds[@]}; ++i)); do
-        if [ "${cmds[$i]}" = "$cmd" ]; then
-            found=1
-        fi
-    done
-
-    if [ "$found" -eq 0 ]; then
-        PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND;}$cmd"
-    fi
-}
-
-#install_vcs_bash_prompt
-
-PS1="\[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\u@\h:\w\$(bpvcs_bash_prompt)\$ "
