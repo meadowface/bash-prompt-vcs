@@ -10,6 +10,10 @@ function bpvcs_git_state() {
             return 0
         fi
 
+        if [ "${line:2:1}" != " " ]; then
+            return 0;
+        fi
+
         # https://git-scm.com/docs/git-status
         local x=${line:0:1}
         local y=${line:1:1}
