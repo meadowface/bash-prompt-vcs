@@ -1,9 +1,14 @@
-function bpvcs_git_state() {
+function bpvcs_reset_state() {
     vcs=""
     changed=0
     untracked=0
     staged=0
     branch=""
+}
+
+function bpvcs_git_state() {
+    bpvcs_reset_state
+
     local line
     while IFS= read -r line ; do
         if [ "${line:0:2}" = "xx" ]; then
@@ -36,11 +41,8 @@ function bpvcs_git_state() {
 }
 
 function bpvcs_hg_state() {
-    vcs=""
-    changed=0
-    untracked=0
-    staged=0
-    branch=""
+    bpvcs_reset_state
+
     local line
     while IFS= read -r line ; do
         if [ "${line:0:2}" = "xx" ]; then
@@ -76,11 +78,8 @@ function bpvcs_hg_state() {
 }
 
 function bpvcs_svn_state() {
-    vcs=""
-    changed=0
-    untracked=0
-    staged=0
-    branch=""
+    bpvcs_reset_state
+
     local line
     while IFS= read -r line ; do
         if [ "${line:0:22}" = "svn: warning: W155007:" ]; then
