@@ -225,6 +225,14 @@ function test_all() {
     test_svn
 }
 
+# Confirm these rather than using the variables up above so the tests remain
+# somewhat readable and useful for looking at to see what the code will output.
+echo Testing default indicators
+if [ "$BPVCS_UNTRACKED_INDICATOR" != "…" ]; then echo "Wrong default untracked indicator"; exit; fi
+if [ "$BPVCS_CHANGED_INDICATOR" != "△" ]; then echo "Wrong default changed indicator"; exit; fi
+if [ "$BPVCS_STAGED_INDICATOR" != "●" ]; then echo "Wrong default staged indicator"; exit; fi
+if [ "$BPVCS_CLEAN_INDICATOR" != "✔" ]; then echo "Wrong default clean indicator"; exit; fi
+
 echo Testing with default colors
 if [ -z "$BPVCS_GIT_COLOR" ]; then echo "No GIT default color!"; exit; fi
 if [ -z "$BPVCS_HG_COLOR" ]; then echo "No HG default color!"; exit; fi
