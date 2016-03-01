@@ -3,8 +3,6 @@
 source bash-prompt-vcs.bash
 
 #TODO: check that function exists
-#TODO: check default of color var
-
 
 tmpdir=$(mktemp -d --tmpdir bpvcs-test-XXX)
 
@@ -35,51 +33,51 @@ function test_git() {
     cd "$gitdir"
 
     run_git init
-    check "git init" " git:(Initial commit on master|✔)"
+    check "git init" "$GIT_PREFIX(Initial commit on master|✔)$SUFFIX"
 
     echo "First post!" >first.txt
     run_git add first.txt
-    check "git add" " git:(Initial commit on master|●1)"
+    check "git add" "$GIT_PREFIX(Initial commit on master|●1)$SUFFIX"
 
     run_git commit -m first
-    check "git added" " git:(master|✔)"
+    check "git added" "$GIT_PREFIX(master|✔)$SUFFIX"
 
     echo "No tracked" >"$gitdir/notme"
-    check "git untracked" " git:(master|…1)"
+    check "git untracked" "$GIT_PREFIX(master|…1)$SUFFIX"
 
     echo "Changed!" >first.txt
-    check "git change" " git:(master|…1△1)"
+    check "git change" "$GIT_PREFIX(master|…1△1)$SUFFIX"
 
     echo "toooooo" >second.txt
-    check "git various" " git:(master|…2△1)"
+    check "git various" "$GIT_PREFIX(master|…2△1)$SUFFIX"
 
     run_git add second.txt
-    check "git staged" " git:(master|…1△1●1)"
+    check "git staged" "$GIT_PREFIX(master|…1△1●1)$SUFFIX"
 
     run_git commit -m "moar files"
-    check "git commit part" " git:(master|…1△1)"
+    check "git commit part" "$GIT_PREFIX(master|…1△1)$SUFFIX"
 
     run_git mv second.txt 2nd.txt
-    check "git rename" " git:(master|…1△1●1)"
+    check "git rename" "$GIT_PREFIX(master|…1△1●1)$SUFFIX"
 
     run_git commit -a -m "save it all"
-    check "git almost clean" " git:(master|…1)"
+    check "git almost clean" "$GIT_PREFIX(master|…1)$SUFFIX"
 
     echo "notme" >"$gitdir/.gitignore"
-    check "git ignore" " git:(master|…1)"
+    check "git ignore" "$GIT_PREFIX(master|…1)$SUFFIX"
 
     run_git add ".gitignore"
     run_git commit ".gitignore" -m "nothing to see here"
-    check "git faux clean" " git:(master|✔)"
+    check "git faux clean" "$GIT_PREFIX(master|✔)$SUFFIX"
 
     rm "$gitdir/notme"
-    check "git clean" " git:(master|✔)"
+    check "git clean" "$GIT_PREFIX(master|✔)$SUFFIX"
 
     run_git checkout -b riskychange
-    check "git branch" " git:(riskychange|✔)"
+    check "git branch" "$GIT_PREFIX(riskychange|✔)$SUFFIX"
 
     run_git checkout master
-    check "git master" " git:(master|✔)"
+    check "git master" "$GIT_PREFIX(master|✔)$SUFFIX"
 
     function git() {
         echo "Nonesense"
@@ -87,7 +85,7 @@ function test_git() {
     check "git bad status" ""
 
     unset git
-    check "git back to good" " git:(master|✔)"
+    check "git back to good" "$GIT_PREFIX(master|✔)$SUFFIX"
 }
 
 function run_hg() {
@@ -99,51 +97,51 @@ function test_hg() {
     cd "$hgdir"
 
     run_hg init
-    check "hg init" " hg:(default|✔)"
+    check "hg init" "$HG_PREFIX(default|✔)$SUFFIX"
 
     echo "First post!" >first.txt
     run_hg add first.txt
-    check "hg add" " hg:(default|△1)"
+    check "hg add" "$HG_PREFIX(default|△1)$SUFFIX"
 
     run_hg commit -m first
-    check "hg added" " hg:(default|✔)"
+    check "hg added" "$HG_PREFIX(default|✔)$SUFFIX"
 
     echo "No tracked" >"$hgdir/notme"
-    check "hg untracked" " hg:(default|…1)"
+    check "hg untracked" "$HG_PREFIX(default|…1)$SUFFIX"
 
     echo "Changed!" >first.txt
-    check "hg change" " hg:(default|…1△1)"
+    check "hg change" "$HG_PREFIX(default|…1△1)$SUFFIX"
 
     echo "toooooo" >second.txt
-    check "hg various" " hg:(default|…2△1)"
+    check "hg various" "$HG_PREFIX(default|…2△1)$SUFFIX"
 
     run_hg add second.txt
-    check "hg add second" " hg:(default|…1△2)"
+    check "hg add second" "$HG_PREFIX(default|…1△2)$SUFFIX"
 
     run_hg commit -m "moar files"
-    check "hg commit" " hg:(default|…1)"
+    check "hg commit" "$HG_PREFIX(default|…1)$SUFFIX"
 
     run_hg rename second.txt 2nd.txt
-    check "hg rename" " hg:(default|…1△1)"
+    check "hg rename" "$HG_PREFIX(default|…1△1)$SUFFIX"
 
     run_hg commit -m "save it all"
-    check "hg almost clean" " hg:(default|…1)"
+    check "hg almost clean" "$HG_PREFIX(default|…1)$SUFFIX"
 
     echo "notme" >"$hgdir/.hgignore"
-    check "hg ignore" " hg:(default|…1)"
+    check "hg ignore" "$HG_PREFIX(default|…1)$SUFFIX"
 
     run_hg add ".hgignore"
     run_hg commit ".hgignore" -m "nothing to see here"
-    check "hg faux clean" " hg:(default|✔)"
+    check "hg faux clean" "$HG_PREFIX(default|✔)$SUFFIX"
 
     rm "$hgdir/notme"
-    check "hg clean" " hg:(default|✔)"
+    check "hg clean" "$HG_PREFIX(default|✔)$SUFFIX"
 
     run_hg branch riskychange
-    check "hg branch" " hg:(riskychange|✔)"
+    check "hg branch" "$HG_PREFIX(riskychange|✔)$SUFFIX"
 
     run_hg branch --clean
-    check "hg default again" " hg:(default|✔)"
+    check "hg default again" "$HG_PREFIX(default|✔)$SUFFIX"
 
     function hg() {
         echo "Nonesense"
@@ -151,7 +149,7 @@ function test_hg() {
     check "hg bad status" ""
 
     unset hg
-    check "hg back to good" " hg:(default|✔)"
+    check "hg back to good" "$HG_PREFIX(default|✔)$SUFFIX"
 }
 
 function run_svnadmin() {
@@ -169,47 +167,47 @@ function test_svn() {
 
     run_svn checkout "file://$svndir/SVNROOT" trunk
     cd "trunk"
-    check "svn init" " svn:(✔)"
+    check "svn init" "$SVN_PREFIX(✔)$SUFFIX"
 
     echo "First post!" >first.txt
     run_svn add first.txt
-    check "svn add" " svn:(△1)"
+    check "svn add" "$SVN_PREFIX(△1)$SUFFIX"
 
     run_svn commit -m first
-    check "svn added" " svn:(✔)"
+    check "svn added" "$SVN_PREFIX(✔)$SUFFIX"
 
     echo "No tracked" >"$svndir/trunk/notme"
-    check "svn untracked" " svn:(…1)"
+    check "svn untracked" "$SVN_PREFIX(…1)$SUFFIX"
 
     echo "Changed!" >first.txt
-    check "svn change" " svn:(…1△1)"
+    check "svn change" "$SVN_PREFIX(…1△1)$SUFFIX"
 
     echo "toooooo" >second.txt
-    check "svn various" " svn:(…2△1)"
+    check "svn various" "$SVN_PREFIX(…2△1)$SUFFIX"
 
     run_svn add second.txt
-    check "svn add second" " svn:(…1△2)"
+    check "svn add second" "$SVN_PREFIX(…1△2)$SUFFIX"
 
     run_svn commit -m "moar files"
-    check "svn commit" " svn:(…1)"
+    check "svn commit" "$SVN_PREFIX(…1)$SUFFIX"
 
     run_svn rename second.txt 2nd.txt
-    check "svn rename" " svn:(…1△1)"
+    check "svn rename" "$SVN_PREFIX(…1△1)$SUFFIX"
 
     run_svn commit -m "save it all"
-    check "svn almost clean" " svn:(…1)"
+    check "svn almost clean" "$SVN_PREFIX(…1)$SUFFIX"
 
     run_svn propset svn:ignore "notme" .
-    check "svn ignore" " svn:(△1)"
+    check "svn ignore" "$SVN_PREFIX(△1)$SUFFIX"
 
     # NOTE: The update is needed!
     # See http://subversion.apache.org/faq.html#wc-out-of-date
     run_svn update
     run_svn commit -m "nothing to see here"
-    check "svn faux clean" " svn:(✔)"
+    check "svn faux clean" "$SVN_PREFIX(✔)$SUFFIX"
 
     rm "$svndir/trunk/notme"
-    check "svn clean" " svn:(✔)"
+    check "svn clean" "$SVN_PREFIX(✔)$SUFFIX"
 
     function svn() {
         echo "Nonesense"
@@ -217,16 +215,39 @@ function test_svn() {
     check "svn bad status" ""
 
     unset svn
-    check "svn back to good" " svn:(✔)"
+    check "svn back to good" "$SVN_PREFIX(✔)$SUFFIX"
 }
 
-unset color_vcs_bash_prompt
-test_none && \
-test_git && \
-test_hg && \
-test_svn
+function test_all() {
+    test_none && \
+    test_git && \
+    test_hg && \
+    test_svn
+}
+
+echo Testing with default colors
+if [ -z "$BPVCS_GIT_COLOR" ]; then echo "No GIT default color!"; exit; fi
+if [ -z "$BPVCS_HG_COLOR" ]; then echo "No HG default color!"; exit; fi
+if [ -z "$BPVCS_SVN_COLOR" ]; then echo "No SVN default color!"; exit; fi
+if [ -z "$BPVCS_COLORS" ]; then echo "No default color!"; exit; fi
+
+SUFFIX=$(echo -e "\033[0m")
+GIT_PREFIX=$(echo -e "$BPVCS_GIT_COLOR ")
+HG_PREFIX=$(echo -e "$BPVCS_HG_COLOR ")
+SVN_PREFIX=$(echo -e "$BPVCS_SVN_COLOR ")
+
+test_all
+
+echo
+echo Testing without colors
+SUFFIX=""
+GIT_PREFIX=" git:"
+HG_PREFIX=" hg:"
+SVN_PREFIX=" svn:"
+unset BPVCS_COLORS
+
+test_all
 
 if [ -n "$tmpdir" ]; then
     rm -rf "$tmpdir"
 fi
-
