@@ -1,6 +1,5 @@
 # bash-prompt-vcs.bash - Library that exposes bpvcs_bash_prompt() for
 #                        showing version control state in the bash prompt.
-#
 # Usage:
 #     In .bashrc do the following:
 #         . bash-prompt-vcs.bash
