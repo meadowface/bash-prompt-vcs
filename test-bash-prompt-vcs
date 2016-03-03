@@ -261,6 +261,18 @@ function shell_state() {
 }
 
 echo Testing sourcing and symbols
+
+# unset everything it might provide in case it's running on the test host.
+unset BPVCS_CHANGED_INDICATOR
+unset BPVCS_CLEAN_INDICATOR
+unset BPVCS_COLORS
+unset BPVCS_GIT_COLOR
+unset BPVCS_HG_COLOR
+unset BPVCS_STAGED_INDICATOR
+unset BPVCS_SVN_COLOR
+unset BPVCS_UNTRACKED_INDICATOR
+unset bpvcs_bash_prompt
+
 test_bpvcs_before=$(shell_state)
 
 source bash-prompt-vcs.bash
