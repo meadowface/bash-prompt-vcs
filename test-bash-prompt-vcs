@@ -56,6 +56,12 @@ function test_git() {
     run_git commit -m "moar files"
     check "git commit part" "$GIT_PREFIX(master|…1△1)$SUFFIX"
 
+    # git tries to track removes so a non-git remove still looks like
+    # a delete but the missing.txt is now an untracked file.
+    mv second.txt missing.txt
+    check "git missing" "$GIT_PREFIX(master|…2△1●1)$SUFFIX"
+    mv missing.txt second.txt
+
     run_git mv second.txt 2nd.txt
     check "git rename" "$GIT_PREFIX(master|…1△1●1)$SUFFIX"
 
@@ -126,6 +132,12 @@ function test_hg() {
 
     run_hg commit -m "moar files"
     check "hg commit" "$HG_PREFIX(default|…1)$SUFFIX"
+
+    # hg tracks deleted but not removed files, but does not
+    # auto-stage them or commit them.  So treat it as an untracked.
+    mv second.txt missing.txt
+    check "hg missing" "$HG_PREFIX(default|…3)$SUFFIX"
+    mv missing.txt second.txt
 
     run_hg rename second.txt 2nd.txt
     check "hg rename" "$HG_PREFIX(default|…1△1)$SUFFIX"
@@ -203,6 +215,12 @@ function test_svn() {
 
     run_svn commit -m "moar files"
     check "svn commit" "$SVN_PREFIX(…1)$SUFFIX"
+
+    # Like hg, svn tracks deleted but not removed files, but does not
+    # auto-stage them or commit them.  So treat it as an untracked.
+    mv second.txt missing.txt
+    check "svn missing" "$SVN_PREFIX(…3)$SUFFIX"
+    mv missing.txt second.txt
 
     # A rename counts as two changes, an add and a delete
     run_svn rename second.txt 2nd.txt

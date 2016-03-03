@@ -105,7 +105,7 @@ bpvcs_bash_prompt() {
                     kind="${parts[1]:-""}"
                     case "${kind}" in
                         modified|added|renamed|removed) ((changed += count)) ;;
-                        unknown)  ((untracked += count)) ;;
+                        unknown|deleted)  ((untracked += count)) ;;
                     esac
                 done
             fi
@@ -138,11 +138,11 @@ bpvcs_bash_prompt() {
 
             case "${line:0:1}" in
                 A|M|R|D) ((changed++)) ;;
-                \?)    ((untracked++)) ;;
+                \?|!)    ((untracked++)) ;;
                 " ")   if [[ "${line:1:1}" = "M" ]]; then ((changed++)); fi ;;
                 # The following are all valid but ignored.
                 # Parse them to be able to detect bad output in the *) case.
-                C|I|X|!|~) ;;
+                C|I|X|~) ;;
                 *) error="unexpected svn status output"; return 0 ;;
             esac
         # svn status returns 0 even if not a sandbox so parse error messages
