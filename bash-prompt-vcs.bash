@@ -86,8 +86,6 @@ bpvcs_bash_prompt() {
                 return 1
             fi
 
-            #Note: Commit message is indented so it won't ever match a field.
-
             local field="${line%%: *}"   # remove everything after first ': '
             local value="${line#*: }"    # remove everything before first ': '
             if [[ "${field}" = "branch" ]]; then
@@ -95,6 +93,7 @@ bpvcs_bash_prompt() {
             elif [[ "${field}" = "commit" ]]; then
                 commit="${value}"
             fi
+            #Note: Commit message is indented so it won't ever match a field.
         done < <(hg summary 2>/dev/null || echo -e "xx: $?")
 
 
