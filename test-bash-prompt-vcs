@@ -56,6 +56,14 @@ function test_git() {
     run_git commit -m "moar files"
     check "git commit part" "$GIT_PREFIX(master|…1△1)$SUFFIX"
 
+    echo "spacey" >"spaces in filename.txt"
+    check "git spaces" "$GIT_PREFIX(master|…2△1)$SUFFIX"
+    rm "spaces in filename.txt"
+
+    echo poo >$'\U0001F4A9'
+    check "git unicode" "$GIT_PREFIX(master|…2△1)$SUFFIX"
+    rm $'\U0001F4A9'
+
     # git tries to track removes so a non-git remove still looks like
     # a delete but the missing.txt is now an untracked file.
     mv second.txt missing.txt
@@ -132,6 +140,14 @@ function test_hg() {
 
     run_hg commit -m "moar files"
     check "hg commit" "$HG_PREFIX(default|…1)$SUFFIX"
+
+    echo "spacey" >"spaces in filename.txt"
+    check "hg spaces" "$HG_PREFIX(default|…2)$SUFFIX"
+    rm "spaces in filename.txt"
+
+    echo poo >$'\U0001F4A9'
+    check "hg unicode" "$HG_PREFIX(default|…2)$SUFFIX"
+    rm $'\U0001F4A9'
 
     # hg tracks deleted but not removed files, but does not
     # auto-stage them or commit them.  So treat it as an untracked.
@@ -220,6 +236,14 @@ function test_svn() {
 
     run_svn commit -m "moar files"
     check "svn commit" "$SVN_PREFIX(…1)$SUFFIX"
+
+    echo "spacey" >"spaces in filename.txt"
+    check "svn spaces" "$SVN_PREFIX(…2)$SUFFIX"
+    rm "spaces in filename.txt"
+
+    echo poo >$'\U0001F4A9'
+    check "svn unicode" "$SVN_PREFIX(…2)$SUFFIX"
+    rm $'\U0001F4A9'
 
     # Like hg, svn tracks deleted but not removed files, but does not
     # auto-stage them or commit them.  So treat it as an untracked.
