@@ -62,6 +62,13 @@ function test_git() {
     run_git commit -a -m "save it all"
     check "git almost clean" "$GIT_PREFIX(master|…1)$SUFFIX"
 
+    echo "short lived third" >third.txt
+    run_git add third.txt
+    run_git commit -m "add third"
+    run_git rm third.txt
+    check "git rm" "$GIT_PREFIX(master|…1●1)$SUFFIX"
+    run_git commit -m "we did not want third"
+
     echo "notme" >"$gitdir/.gitignore"
     check "git ignore" "$GIT_PREFIX(master|…1)$SUFFIX"
 
@@ -125,6 +132,13 @@ function test_hg() {
 
     run_hg commit -m "save it all"
     check "hg almost clean" "$HG_PREFIX(default|…1)$SUFFIX"
+
+    echo "short lived third" >third.txt
+    run_hg add third.txt
+    run_hg commit -m "add third"
+    run_hg rm third.txt
+    check "hg rm" "$HG_PREFIX(default|…1△1)$SUFFIX"
+    run_hg commit -m "we did not want third"
 
     echo "notme" >"$hgdir/.hgignore"
     check "hg ignore" "$HG_PREFIX(default|…1)$SUFFIX"
@@ -190,11 +204,19 @@ function test_svn() {
     run_svn commit -m "moar files"
     check "svn commit" "$SVN_PREFIX(…1)$SUFFIX"
 
+    # A rename counts as two changes, an add and a delete
     run_svn rename second.txt 2nd.txt
-    check "svn rename" "$SVN_PREFIX(…1△1)$SUFFIX"
+    check "svn rename" "$SVN_PREFIX(…1△2)$SUFFIX"
 
     run_svn commit -m "save it all"
     check "svn almost clean" "$SVN_PREFIX(…1)$SUFFIX"
+
+    echo "short lived third" >third.txt
+    run_svn add third.txt
+    run_svn commit -m "add third"
+    run_svn rm third.txt
+    check "svn rm" "$SVN_PREFIX(…1△1)$SUFFIX"
+    run_svn commit -m "we did not want third"
 
     run_svn propset svn:ignore "notme" .
     check "svn ignore" "$SVN_PREFIX(△1)$SUFFIX"
