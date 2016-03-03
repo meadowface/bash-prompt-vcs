@@ -113,7 +113,8 @@ bpvcs_bash_prompt() {
 
         # branch: should *always* be present, if not assume bad output
         if [[ -z "${branch}" ]]; then
-            return 1
+            error="unexpected hg summary output"
+            return 0
         fi
 
         vcs="hg"

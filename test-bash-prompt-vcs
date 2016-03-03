@@ -171,7 +171,7 @@ function test_hg() {
     function hg() {
         echo "Nonesense"
     }
-    check "hg bad status" ""
+    check "hg bad status" "${ERR_PREFIX}(unexpected hg summary output)$SUFFIX"
 
     unset hg
     check "hg back to good" "$HG_PREFIX(default|✔)$SUFFIX"
