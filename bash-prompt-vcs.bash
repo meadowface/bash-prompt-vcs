@@ -130,6 +130,12 @@ bpvcs_bash_prompt() {
                 return 1
             fi
 
+            # svn upgrade needed
+            if [[ "${line:0:13}" = "svn: E155036:" ]]; then
+                error="'svn upgrade' needed"
+                return 0
+            fi
+
             case "${line:0:1}" in
                 A|M|R) ((changed++)) ;;
                 \?)    ((untracked++)) ;;

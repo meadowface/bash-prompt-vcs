@@ -213,7 +213,13 @@ function test_svn() {
     }
     check "svn bad status" "${ERR_PREFIX}(unexpected svn status output)$SUFFIX"
 
+    # version numbers below work as of svn 1.8.13
+    # http://stackoverflow.com/questions/1364618/how-do-i-determine-the-svn-working-copy-layout-version
     unset svn
+    sqlite3 "$svndir/trunk/.svn/wc.db" "PRAGMA user_version=27"
+    check "svn upgrade needed" "${ERR_PREFIX}('svn upgrade' needed)$SUFFIX"
+
+    sqlite3 "$svndir/trunk/.svn/wc.db" "PRAGMA user_version=31"
     check "svn back to good" "$SVN_PREFIX(✔)$SUFFIX"
 }
 
