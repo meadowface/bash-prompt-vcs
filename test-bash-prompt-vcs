@@ -169,7 +169,12 @@ function test_hg() {
     check "hg default again" "$HG_PREFIX(default|✔)$SUFFIX"
 
     function hg() {
-        echo "Nonesense"
+        echo "branch: fooled you"
+    }
+    check "hg bad status" "${ERR_PREFIX}(unexpected hg summary output)$SUFFIX"
+
+    function hg() {
+        echo "commit: fooledyou"
     }
     check "hg bad status" "${ERR_PREFIX}(unexpected hg summary output)$SUFFIX"
 

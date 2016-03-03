@@ -80,6 +80,7 @@ bpvcs_bash_prompt() {
         _reset_state
 
         local line
+        local commit=""
         while IFS= read -r line ; do
             if [[ "${line:0:2}" = "xx" ]]; then
                 return 1
@@ -92,30 +93,33 @@ bpvcs_bash_prompt() {
             if [[ "${field}" = "branch" ]]; then
                 branch="${value}"
             elif [[ "${field}" = "commit" ]]; then
-                # commit: 1 modified, 1 added, 2 unknown (info)
-                # +----+  +-----------------------------------+ field value
-                #         +--------+ +------+ +---------------+ chunks
-                #         + +------+  + +---+  + +-----+ +----+ parts
-                local chunks chunk
-                IFS="," read -r -a chunks <<< "${value}"
-                for chunk in "${chunks[@]}"; do
-                    local parts count kind
-                    IFS=" " read -r -a parts <<< "${chunk}"
-                    count="${parts[0]:-0}"
-                    kind="${parts[1]:-""}"
-                    case "${kind}" in
-                        modified|added|renamed|removed) ((changed += count)) ;;
-                        unknown|deleted)  ((untracked += count)) ;;
-                    esac
-                done
+                commit="${value}"
             fi
         done < <(hg summary 2>/dev/null || echo -e "xx: $?")
 
-        # branch: should *always* be present, if not assume bad output
-        if [[ -z "${branch}" ]]; then
+
+        # both should *always* be present, if not assume bad output
+        if [[ -z "${branch}" || -z "${commit}" ]]; then
             error="unexpected hg summary output"
             return 0
         fi
+
+        # commit: 1 modified, 1 added, 2 unknown (info)
+        # +----+  +-----------------------------------+ field value
+        #         +--------+ +------+ +---------------+ chunks
+        #         + +------+  + +---+  + +-----+ +----+ parts
+        local chunks chunk
+        IFS="," read -r -a chunks <<< "${commit}"
+        for chunk in "${chunks[@]}"; do
+            local parts count kind
+            IFS=" " read -r -a parts <<< "${chunk}"
+            count="${parts[0]:-0}"
+            kind="${parts[1]:-""}"
+            case "${kind}" in
+                modified|added|renamed|removed) ((changed += count)) ;;
+                unknown|deleted)  ((untracked += count)) ;;
+            esac
+        done
 
         vcs="hg"
         return 0
