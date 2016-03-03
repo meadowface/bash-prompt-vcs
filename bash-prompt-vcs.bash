@@ -17,6 +17,7 @@ BPVCS_CLEAN_INDICATOR="✔"               # used when cwd has none of the above
 BPVCS_GIT_COLOR="\033[0;32m"            # git defaults to green
 BPVCS_HG_COLOR="\033[0;36m"             # hg defaults to cyan
 BPVCS_SVN_COLOR="\033[0;35m"            # svn defaults to purple
+BPVCS_ERR_COLOR="\033[0;31m"            # error defaults to red
 BPVCS_COLORS=1                          # unset to turn off color
 
 bpvcs_bash_prompt() {
@@ -25,16 +26,19 @@ bpvcs_bash_prompt() {
     local -i untracked      # count of items not in version control
     local -i staged         # count of items staged for commit
     local branch            # name of current branch or "" if not gathered
+    local error             # if set, show error to user
 
     # *_state functions are called to gather state from each VCS.
-    # Each function must return 1 on error and 0 on success, with success
-    # also setting appropriate values for the variables above.
+    # Each function must return 1 if it's not a sandbox, 0 if it is.
+    # Must also setting appropriate values for the variables above.
+    # If it's a sandbox but there's an error, error must be set.
     _reset_state() {
         vcs=""
         changed=0
         untracked=0
         staged=0
         branch=""
+        error=""
     }
 
     _git_state() {
@@ -47,7 +51,8 @@ bpvcs_bash_prompt() {
             fi
 
             if [[ "${line:2:1}" != " " ]]; then
-                return 1;
+                error="unexpected git status output"
+                return 0;
             fi
 
             # https://git-scm.com/docs/git-status
@@ -130,12 +135,12 @@ bpvcs_bash_prompt() {
                 \?)    ((untracked++)) ;;
                 " ")   if [[ "${line:1:1}" = "M" ]]; then ((changed++)); fi ;;
                 # The following are all valid but ignored.
-                # Prase them to be able to detect bad output in the *) case.
+                # Parse them to be able to detect bad output in the *) case.
                 C|D|I|X|!|~) ;;
-                *) return 1 ;;
+                *) error="unexpected svn status output"; return 0 ;;
             esac
-        #svn status doesn't return anything but 0, but keep the mechanism in place
-        done < <(svn status --depth immediates 2>&1 || echo -e "xx: $?")
+        # svn status returns 0 even if not a sandbox so parse error messages
+        done < <(svn status --depth immediates 2>&1)
 
         vcs="svn"
         return 0
@@ -150,26 +155,32 @@ bpvcs_bash_prompt() {
     unset _hg_state
     unset _svn_state
 
-    #TODO: have an errors flag too incase vc returns something unparsable.
-    local vcstate=""
-    (( untracked )) && vcstate+="${BPVCS_UNTRACKED_INDICATOR}${untracked}"
-    (( changed ))   && vcstate+="${BPVCS_CHANGED_INDICATOR}${changed}"
-    (( staged ))    && vcstate+="${BPVCS_STAGED_INDICATOR}${staged}"
-    if [[ -z "${vcstate}" ]]; then
-        vcstate="${BPVCS_CLEAN_INDICATOR}"
+    local vcstate prefix suffix
+    if [[ -n "${error}" ]]; then
+        vcs="ERR"
+        vcstate="(${error})"
+        prefix="${BPVCS_ERR_COLOR} "
+    else
+        vcstate=""
+        (( untracked )) && vcstate+="${BPVCS_UNTRACKED_INDICATOR}${untracked}"
+        (( changed ))   && vcstate+="${BPVCS_CHANGED_INDICATOR}${changed}"
+        (( staged ))    && vcstate+="${BPVCS_STAGED_INDICATOR}${staged}"
+        if [[ -z "${vcstate}" ]]; then
+            vcstate="${BPVCS_CLEAN_INDICATOR}"
+        fi
+
+        case "${vcs}" in
+            git)  prefix="${BPVCS_GIT_COLOR} "; vcstate="(${branch}|${vcstate})" ;;
+            hg)   prefix="${BPVCS_HG_COLOR} ";  vcstate="(${branch}|${vcstate})" ;;
+            svn)  prefix="${BPVCS_SVN_COLOR} "; vcstate="(${vcstate})" ;;
+            *)    return ;;
+        esac
     fi
 
-    local prefix
-    case "${vcs}" in
-        git)  prefix="${BPVCS_GIT_COLOR} "; vcstate="(${branch}|${vcstate})" ;;
-        hg)   prefix="${BPVCS_HG_COLOR} ";  vcstate="(${branch}|${vcstate})" ;;
-        svn)  prefix="${BPVCS_SVN_COLOR} "; vcstate="(${vcstate})" ;;
-        *)    return ;;
-    esac
-    local suffix="\033[0m"      # reset colors
-
-    if [[ -z "${BPVCS_COLORS:-}" ]]; then
-        prefix=" ${vcs}:"
+    if [[ -n "${BPVCS_COLORS:-}" ]]; then
+        suffix="\033[0m"      # reset colors
+    else
+        prefix=" ${vcs}:"     # explicitly show vcs for monochrome
         suffix=""
     fi
 

@@ -81,7 +81,7 @@ function test_git() {
     function git() {
         echo "Nonesense"
     }
-    check "git bad status" ""
+    check "git bad status" "${ERR_PREFIX}(unexpected git status output)$SUFFIX"
 
     unset git
     check "git back to good" "$GIT_PREFIX(master|✔)$SUFFIX"
@@ -211,7 +211,7 @@ function test_svn() {
     function svn() {
         echo "Nonesense"
     }
-    check "svn bad status" ""
+    check "svn bad status" "${ERR_PREFIX}(unexpected svn status output)$SUFFIX"
 
     unset svn
     check "svn back to good" "$SVN_PREFIX(✔)$SUFFIX"
@@ -234,6 +234,7 @@ function test_outputs() {
     local GIT_PREFIX=$(echo -e "$BPVCS_GIT_COLOR ")
     local HG_PREFIX=$(echo -e "$BPVCS_HG_COLOR ")
     local SVN_PREFIX=$(echo -e "$BPVCS_SVN_COLOR ")
+    local ERR_PREFIX=$(echo -e "$BPVCS_ERR_COLOR ")
 
     test_all
     echo
@@ -245,6 +246,7 @@ function test_outputs() {
     GIT_PREFIX=" git:"
     HG_PREFIX=" hg:"
     SVN_PREFIX=" svn:"
+    ERR_PREFIX=" ERR:"
     unset BPVCS_COLORS
 
     test_all
@@ -266,6 +268,7 @@ echo Testing sourcing and symbols
 unset BPVCS_CHANGED_INDICATOR
 unset BPVCS_CLEAN_INDICATOR
 unset BPVCS_COLORS
+unset BPVCS_ERR_COLOR
 unset BPVCS_GIT_COLOR
 unset BPVCS_HG_COLOR
 unset BPVCS_STAGED_INDICATOR
@@ -288,6 +291,7 @@ test_bpvcs_expected_symbols=""
 test_bpvcs_expected_symbols+=$'> BPVCS_CHANGED_INDICATOR\n'
 test_bpvcs_expected_symbols+=$'> BPVCS_CLEAN_INDICATOR\n'
 test_bpvcs_expected_symbols+=$'> BPVCS_COLORS\n'
+test_bpvcs_expected_symbols+=$'> BPVCS_ERR_COLOR\n'
 test_bpvcs_expected_symbols+=$'> BPVCS_GIT_COLOR\n'
 test_bpvcs_expected_symbols+=$'> BPVCS_HG_COLOR\n'
 test_bpvcs_expected_symbols+=$'> BPVCS_STAGED_INDICATOR\n'
