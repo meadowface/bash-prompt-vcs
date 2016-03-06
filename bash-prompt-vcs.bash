@@ -168,7 +168,7 @@ bpvcs_bash_prompt() {
     if [[ -n "${error}" ]]; then
         vcs="ERR"
         vcstate="(${error})"
-        prefix="${BPVCS_ERR_COLOR} "
+        prefix="${BPVCS_ERR_COLOR}"
     else
         vcstate=""
         (( untracked )) && vcstate+="${BPVCS_UNTRACKED_INDICATOR}${untracked}"
@@ -179,15 +179,21 @@ bpvcs_bash_prompt() {
         fi
 
         case "${vcs}" in
-            git)  prefix="${BPVCS_GIT_COLOR} "; vcstate="(${branch}|${vcstate})" ;;
-            hg)   prefix="${BPVCS_HG_COLOR} ";  vcstate="(${branch}|${vcstate})" ;;
-            svn)  prefix="${BPVCS_SVN_COLOR} "; vcstate="(${vcstate})" ;;
+            git)  prefix="${BPVCS_GIT_COLOR}"; vcstate="(${branch}|${vcstate})" ;;
+            hg)   prefix="${BPVCS_HG_COLOR}";  vcstate="(${branch}|${vcstate})" ;;
+            svn)  prefix="${BPVCS_SVN_COLOR}"; vcstate="(${vcstate})" ;;
             *)    return ;;
         esac
     fi
 
+    # Wrap the prefix in the chars that tell bash/readline that those
+    # are non-printing characters, also add a space to make it look nice.
+    prefix="\x01${prefix}\x02 "
+
     if [[ -n "${BPVCS_COLORS:-}" ]]; then
-        suffix="\033[0m"      # reset colors
+        # Reset colors to normal with the suffix, again wrapping with chars
+        # to indicate non-printing characters to bash/readline.
+        suffix="\x01\033[0m\x02"
     else
         prefix=" ${vcs}:"     # explicitly show vcs for monochrome
         suffix=""

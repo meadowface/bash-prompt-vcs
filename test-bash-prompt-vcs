@@ -304,12 +304,14 @@ function test_outputs() {
     local tmpdir=$(mktemp -d --tmpdir bpvcs-test-XXX)
 
     # Run through all of the tests with color making sure the output is
-    # wrapped correctly with color prefixes and suffixes.
-    local SUFFIX=$(echo -e "\033[0m")
-    local GIT_PREFIX=$(echo -e "$BPVCS_GIT_COLOR ")
-    local HG_PREFIX=$(echo -e "$BPVCS_HG_COLOR ")
-    local SVN_PREFIX=$(echo -e "$BPVCS_SVN_COLOR ")
-    local ERR_PREFIX=$(echo -e "$BPVCS_ERR_COLOR ")
+    # wrapped correctly with color prefixes and suffixes and that those
+    # have the \x01 and \x02 characters that readline requires to recognize
+    # non-printing characters.
+    local SUFFIX=$(echo -e "\x01\033[0m\x02")
+    local GIT_PREFIX=$(echo -e "\x01$BPVCS_GIT_COLOR\x02 ")
+    local HG_PREFIX=$(echo -e "\x01$BPVCS_HG_COLOR\x02 ")
+    local SVN_PREFIX=$(echo -e "\x01$BPVCS_SVN_COLOR\x02 ")
+    local ERR_PREFIX=$(echo -e "\x01$BPVCS_ERR_COLOR\x02 ")
 
     test_all
     echo
