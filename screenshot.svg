@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1"
+     xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="850" height="300"
+>
+  <!--
+        github won't allow SVG images in READMEs.
+        (see http://stackoverflow.com/questions/13808020/include-an-svg-hosted-on-github-in-markdown)
+
+        So convert this to a PNG with:
+          $ convert -density 90 screenshot.svg screenshot.png
+          OR
+          $ inkscape -z -e screenshot.png screenshot.svg
+  -->
+  <defs>
+    <style type="text/css"><![CDATA[
+      .background {
+        fill: black;
+      }
+      .prompt {
+        fill: white;
+        font-style: bold;
+      }
+      .comment {
+        fill: grey;
+        font-style: italic;
+      }
+      .git {
+        fill: green;
+      }
+      .hg {
+        fill: cyan;
+      }
+      .svn {
+        fill: purple;
+      }
+    ]]></style>
+  </defs>
+  <rect x="0" y="0" width="850" height="300" class="background"/>
+  <text font-weight="bold" font-size="16" font-family="Consolas, Menlo, Courier, monospace" class="prompt">
+    <tspan x="20" y="35">user@host:~/project</tspan>
+    <tspan class="git">(master|…2△1)<tspan class="prompt">$</tspan></tspan>
+    <tspan x="400" class="comment">        # A git sandbox with two untracked files</tspan>
+    <tspan x="400" dy="18" class="comment"># and one modified.</tspan>
+
+    <tspan x="20" dy="45">user@host:~/dotfiles</tspan>
+    <tspan class="git">(refactor|△1●1)<tspan class="prompt">$</tspan></tspan>
+    <tspan x="400" class="comment">        # A git sandbox with one modified file</tspan>
+    <tspan x="400" dy="18" class="comment"># and two staged for commit</tspan>
+    <tspan x="400" dy="18" class="comment"># on the refactor branch.</tspan>
+
+    <tspan x="20" dy="45">user@host:/projects/clean</tspan>
+    <tspan class="svn">(✔)<tspan class="prompt">$</tspan></tspan>
+    <tspan x="400" class="comment"># A clean svn sandbox.</tspan>
+
+    <tspan x="20" dy="45">user@host:/code/perl</tspan>
+    <tspan class="hg">(default|…1)<tspan class="prompt">$</tspan></tspan>
+    <tspan x="400" class="comment"># An hg sandbox with one untracked file.</tspan>
+
+    <tspan x="20" dy="45">user@host:/code/apl git:(master|✔)$</tspan>
+    <tspan x="400" class="comment"># A clean git sandbox with HG_COLORS unset.</tspan>
+
+  </text>
+  <text font-size="16">
+  </text>
+
+</svg>
