@@ -17,6 +17,7 @@ BPVCS_GIT_COLOR="\033[0;32m"            # git defaults to green
 BPVCS_HG_COLOR="\033[0;36m"             # hg defaults to cyan
 BPVCS_SVN_COLOR="\033[0;35m"            # svn defaults to purple
 BPVCS_ERR_COLOR="\033[0;31m"            # error defaults to red
+BPVCS_RESET_COLOR="\033[0m"             # reset
 BPVCS_COLORS=1                          # unset to turn off color
 
 bpvcs_bash_prompt() {
@@ -193,7 +194,7 @@ bpvcs_bash_prompt() {
     if [[ -n "${BPVCS_COLORS:-}" ]]; then
         # Reset colors to normal with the suffix, again wrapping with chars
         # to indicate non-printing characters to bash/readline.
-        suffix="\x01\033[0m\x02"
+        suffix="\x01${BPVCS_RESET_COLOR}\x02"
     else
         prefix=" ${vcs}:"     # explicitly show vcs for monochrome
         suffix=""
