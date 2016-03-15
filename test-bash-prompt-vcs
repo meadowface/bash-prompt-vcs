@@ -11,17 +11,18 @@ set -u
 # run.
 # Output the test description followed by OK. if the prompt output matches
 # the expected output or FAILED: and details if not.
+# Will make sure the prefix/suffix variables are part of the output.
 test_prompt() {
     local -r description="$1"
     local -r expected="$2"
-    echo -n "${description}: "
+    printf "${description}: "
     local prompt=$(bpvcs_bash_prompt)
     bpvcs_bash_prompt >/dev/null
-    if [[ "${prompt}" = "${expected}" ]]; then
-        echo "OK."
+    if [[ "${prompt}" = "${prefix:-}${expected}${suffix:-}" ]]; then
+        printf "OK.\n"
     else
-        echo "FAILED. Expected: '${expected}' got '${prompt}'"
-        echo "Working trees in ${tmpdir}"
+        printf "FAILED.\n  Expected: %q\n       got: %q\n" "${prefix:-}${expected}${suffix:-}" "${prompt}"
+        printf "Working trees in ${tmpdir}\n"
         exit
     fi
 
@@ -29,8 +30,15 @@ test_prompt() {
 
 # Tests for non-working tree directories.
 test_none() {
+    # Need to save/restore suffix so we clobber it for later tests.
+    local save_suffix="${suffix}"
+    prefix=""
+    suffix=""
+
     cd "${tmpdir}"
     test_prompt "none" ""
+
+    suffix="${save_suffix}"
 }
 
 # Tests for git working trees.
@@ -39,85 +47,88 @@ run_git() {
 }
 
 test_git() {
+    prefix="${git_prefix}"
     local gitdir=$(mktemp -d --tmpdir=${tmpdir} test_git.XXX)
     cd "${gitdir}"
 
     run_git init
-    test_prompt "git init" "${GIT_PREFIX}(Initial commit on master|✔)${SUFFIX}"
+    test_prompt "git init" "(Initial commit on master|✔)"
 
     echo "First post!" >first.txt
     run_git add first.txt
-    test_prompt "git add" "${GIT_PREFIX}(Initial commit on master|●1)${SUFFIX}"
+    test_prompt "git add" "(Initial commit on master|●1)"
 
     run_git commit -m first
-    test_prompt "git added" "${GIT_PREFIX}(master|✔)${SUFFIX}"
+    test_prompt "git added" "(master|✔)"
 
     echo "No tracked" >"$gitdir/notme"
-    test_prompt "git untracked" "${GIT_PREFIX}(master|…1)${SUFFIX}"
+    test_prompt "git untracked" "(master|…1)"
 
     echo "Changed!" >first.txt
-    test_prompt "git change" "${GIT_PREFIX}(master|…1△1)${SUFFIX}"
+    test_prompt "git change" "(master|…1△1)"
 
     echo "toooooo" >second.txt
-    test_prompt "git various" "${GIT_PREFIX}(master|…2△1)${SUFFIX}"
+    test_prompt "git various" "(master|…2△1)"
 
     run_git add second.txt
-    test_prompt "git staged" "${GIT_PREFIX}(master|…1△1●1)${SUFFIX}"
+    test_prompt "git staged" "(master|…1△1●1)"
 
     run_git commit -m "moar files"
-    test_prompt "git commit part" "${GIT_PREFIX}(master|…1△1)${SUFFIX}"
+    test_prompt "git commit part" "(master|…1△1)"
 
     echo "spacey" >"spaces in filename.txt"
-    test_prompt "git spaces" "${GIT_PREFIX}(master|…2△1)${SUFFIX}"
+    test_prompt "git spaces" "(master|…2△1)"
     rm "spaces in filename.txt"
 
     echo poo >$'\U0001F4A9'
-    test_prompt "git unicode" "${GIT_PREFIX}(master|…2△1)${SUFFIX}"
+    test_prompt "git unicode" "(master|…2△1)"
     rm $'\U0001F4A9'
 
     # git tries to track removes so a non-git remove still looks like
     # a delete but the missing.txt is now an untracked file.
     mv second.txt missing.txt
-    test_prompt "git missing" "${GIT_PREFIX}(master|…2△1●1)${SUFFIX}"
+    test_prompt "git missing" "(master|…2△1●1)"
     mv missing.txt second.txt
 
     run_git mv second.txt 2nd.txt
-    test_prompt "git rename" "${GIT_PREFIX}(master|…1△1●1)${SUFFIX}"
+    test_prompt "git rename" "(master|…1△1●1)"
 
     run_git commit -a -m "save it all"
-    test_prompt "git almost clean" "${GIT_PREFIX}(master|…1)${SUFFIX}"
+    test_prompt "git almost clean" "(master|…1)"
 
     echo "short lived third" >third.txt
     run_git add third.txt
     run_git commit -m "add third"
     run_git rm third.txt
-    test_prompt "git rm" "${GIT_PREFIX}(master|…1●1)${SUFFIX}"
+    test_prompt "git rm" "(master|…1●1)"
     run_git commit -m "we did not want third"
 
     echo "notme" >"${gitdir}/.gitignore"
-    test_prompt "git ignore" "${GIT_PREFIX}(master|…1)${SUFFIX}"
+    test_prompt "git ignore" "(master|…1)"
 
     run_git add ".gitignore"
     run_git commit ".gitignore" -m "nothing to see here"
-    test_prompt "git faux clean" "${GIT_PREFIX}(master|✔)${SUFFIX}"
+    test_prompt "git faux clean" "(master|✔)"
 
     rm "${gitdir}/notme"
-    test_prompt "git clean" "${GIT_PREFIX}(master|✔)${SUFFIX}"
+    test_prompt "git clean" "(master|✔)"
 
     run_git checkout -b riskychange
-    test_prompt "git branch" "${GIT_PREFIX}(riskychange|✔)${SUFFIX}"
+    test_prompt "git branch" "(riskychange|✔)"
 
     run_git checkout master
-    test_prompt "git master" "${GIT_PREFIX}(master|✔)${SUFFIX}"
+    test_prompt "git master" "(master|✔)"
 
     # Replace git with a that outputs nonsense to test parsing errors.
     git() {
         echo "Nonesense"
     }
-    test_prompt "git bad status" "${ERR_PREFIX}(unexpected git status output)${SUFFIX}"
+    prefix="${err_prefix}"
+    test_prompt "git bad status" "(unexpected git status output)"
 
+    prefix="${git_prefix}"
     unset git
-    test_prompt "git back to good" "${GIT_PREFIX}(master|✔)${SUFFIX}"
+    test_prompt "git back to good" "(master|✔)"
 }
 
 
@@ -127,90 +138,93 @@ run_hg() {
 }
 
 test_hg() {
+    prefix="${hg_prefix}"
     local hgdir=$(mktemp -d --tmpdir=$tmpdir test_hg.XXX)
     cd "${hgdir}"
 
     run_hg init
-    test_prompt "hg init" "${HG_PREFIX}(default|✔)${SUFFIX}"
+    test_prompt "hg init" "(default|✔)"
 
     echo "First post!" >first.txt
     run_hg add first.txt
-    test_prompt "hg add" "${HG_PREFIX}(default|△1)${SUFFIX}"
+    test_prompt "hg add" "(default|△1)"
 
     run_hg commit -m first
-    test_prompt "hg added" "${HG_PREFIX}(default|✔)${SUFFIX}"
+    test_prompt "hg added" "(default|✔)"
 
     echo "No tracked" >"${hgdir}/notme"
-    test_prompt "hg untracked" "${HG_PREFIX}(default|…1)${SUFFIX}"
+    test_prompt "hg untracked" "(default|…1)"
 
     echo "Changed!" >first.txt
-    test_prompt "hg change" "${HG_PREFIX}(default|…1△1)${SUFFIX}"
+    test_prompt "hg change" "(default|…1△1)"
 
     echo "toooooo" >second.txt
-    test_prompt "hg various" "${HG_PREFIX}(default|…2△1)${SUFFIX}"
+    test_prompt "hg various" "(default|…2△1)"
 
     run_hg add second.txt
-    test_prompt "hg add second" "${HG_PREFIX}(default|…1△2)${SUFFIX}"
+    test_prompt "hg add second" "(default|…1△2)"
 
     run_hg commit -m "moar files"
-    test_prompt "hg commit" "${HG_PREFIX}(default|…1)${SUFFIX}"
+    test_prompt "hg commit" "(default|…1)"
 
     echo "spacey" >"spaces in filename.txt"
-    test_prompt "hg spaces" "${HG_PREFIX}(default|…2)${SUFFIX}"
+    test_prompt "hg spaces" "(default|…2)"
     rm "spaces in filename.txt"
 
     echo poo >$'\U0001F4A9'
-    test_prompt "hg unicode" "${HG_PREFIX}(default|…2)${SUFFIX}"
+    test_prompt "hg unicode" "(default|…2)"
     rm $'\U0001F4A9'
 
     # hg tracks deleted but not removed files, but does not
     # auto-stage them or commit them.  So treat it as an untracked.
     mv second.txt missing.txt
-    test_prompt "hg missing" "${HG_PREFIX}(default|…3)${SUFFIX}"
+    test_prompt "hg missing" "(default|…3)"
     mv missing.txt second.txt
 
     run_hg rename second.txt 2nd.txt
-    test_prompt "hg rename" "${HG_PREFIX}(default|…1△1)${SUFFIX}"
+    test_prompt "hg rename" "(default|…1△1)"
 
     run_hg commit -m "save it all"
-    test_prompt "hg almost clean" "${HG_PREFIX}(default|…1)${SUFFIX}"
+    test_prompt "hg almost clean" "(default|…1)"
 
     echo "short lived third" >third.txt
     run_hg add third.txt
     run_hg commit -m "add third"
     run_hg rm third.txt
-    test_prompt "hg rm" "${HG_PREFIX}(default|…1△1)${SUFFIX}"
+    test_prompt "hg rm" "(default|…1△1)"
     run_hg commit -m "we did not want third"
 
     echo "notme" >"${hgdir}/.hgignore"
-    test_prompt "hg ignore" "${HG_PREFIX}(default|…1)${SUFFIX}"
+    test_prompt "hg ignore" "(default|…1)"
 
     run_hg add ".hgignore"
     run_hg commit ".hgignore" -m "nothing to see here"
-    test_prompt "hg faux clean" "${HG_PREFIX}(default|✔)${SUFFIX}"
+    test_prompt "hg faux clean" "(default|✔)"
 
     rm "${hgdir}/notme"
-    test_prompt "hg clean" "${HG_PREFIX}(default|✔)${SUFFIX}"
+    test_prompt "hg clean" "(default|✔)"
 
     run_hg branch riskychange
-    test_prompt "hg branch" "${HG_PREFIX}(riskychange|✔)${SUFFIX}"
+    test_prompt "hg branch" "(riskychange|✔)"
 
     run_hg branch --clean
-    test_prompt "hg default again" "${HG_PREFIX}(default|✔)${SUFFIX}"
+    test_prompt "hg default again" "(default|✔)"
 
     # Replace hg with a that outputs nonsense to test parsing errors.
     hg() {
         echo "branch: fooled you"
     }
-    test_prompt "hg bad status" "${ERR_PREFIX}(unexpected hg summary output)${SUFFIX}"
+    prefix="${err_prefix}"
+    test_prompt "hg bad status" "(unexpected hg summary output)"
 
     hg() {
         echo "commit: fooledyou"
     }
-    test_prompt "hg bad status" "${ERR_PREFIX}(unexpected hg summary output)${SUFFIX}"
+    test_prompt "hg bad status" "(unexpected hg summary output)"
 
+    prefix="${hg_prefix}"
     unset hg
-    test_prompt "hg back to good" "${HG_PREFIX}(default|✔)${SUFFIX}"
+    test_prompt "hg back to good" "(default|✔)"
 }
 
 
@@ -224,90 +238,93 @@ run_svn() {
 }
 
 test_svn() {
+    prefix="${svn_prefix}"
     local svndir=$(mktemp -d --tmpdir=${tmpdir} test_svn.XXX)
     cd "${svndir}"
     run_svnadmin create SVNROOT
 
     run_svn checkout "file://${svndir}/SVNROOT" trunk
     cd "trunk"
-    test_prompt "svn init" "${SVN_PREFIX}(✔)${SUFFIX}"
+    test_prompt "svn init" "(✔)"
 
     echo "First post!" >first.txt
     run_svn add first.txt
-    test_prompt "svn add" "${SVN_PREFIX}(△1)${SUFFIX}"
+    test_prompt "svn add" "(△1)"
 
     run_svn commit -m first
-    test_prompt "svn added" "${SVN_PREFIX}(✔)${SUFFIX}"
+    test_prompt "svn added" "(✔)"
 
     echo "No tracked" >"${svndir}/trunk/notme"
-    test_prompt "svn untracked" "${SVN_PREFIX}(…1)${SUFFIX}"
+    test_prompt "svn untracked" "(…1)"
 
     echo "Changed!" >first.txt
-    test_prompt "svn change" "${SVN_PREFIX}(…1△1)${SUFFIX}"
+    test_prompt "svn change" "(…1△1)"
 
     echo "toooooo" >second.txt
-    test_prompt "svn various" "${SVN_PREFIX}(…2△1)${SUFFIX}"
+    test_prompt "svn various" "(…2△1)"
 
     run_svn add second.txt
-    test_prompt "svn add second" "${SVN_PREFIX}(…1△2)${SUFFIX}"
+    test_prompt "svn add second" "(…1△2)"
 
     run_svn commit -m "moar files"
-    test_prompt "svn commit" "${SVN_PREFIX}(…1)${SUFFIX}"
+    test_prompt "svn commit" "(…1)"
 
     echo "spacey" >"spaces in filename.txt"
-    test_prompt "svn spaces" "${SVN_PREFIX}(…2)${SUFFIX}"
+    test_prompt "svn spaces" "(…2)"
     rm "spaces in filename.txt"
 
     echo poo >$'\U0001F4A9'
-    test_prompt "svn unicode" "${SVN_PREFIX}(…2)${SUFFIX}"
+    test_prompt "svn unicode" "(…2)"
     rm $'\U0001F4A9'
 
     # Like hg, svn tracks deleted but not removed files, but does not
     # auto-stage them or commit them.  So treat it as an untracked.
     mv second.txt missing.txt
-    test_prompt "svn missing" "${SVN_PREFIX}(…3)${SUFFIX}"
+    test_prompt "svn missing" "(…3)"
     mv missing.txt second.txt
 
     # A rename counts as two changes, an add and a delete
     run_svn rename second.txt 2nd.txt
-    test_prompt "svn rename" "${SVN_PREFIX}(…1△2)${SUFFIX}"
+    test_prompt "svn rename" "(…1△2)"
 
     run_svn commit -m "save it all"
-    test_prompt "svn almost clean" "${SVN_PREFIX}(…1)${SUFFIX}"
+    test_prompt "svn almost clean" "(…1)"
 
     echo "short lived third" >third.txt
     run_svn add third.txt
     run_svn commit -m "add third"
     run_svn rm third.txt
-    test_prompt "svn rm" "${SVN_PREFIX}(…1△1)${SUFFIX}"
+    test_prompt "svn rm" "(…1△1)"
     run_svn commit -m "we did not want third"
 
     run_svn propset svn:ignore "notme" .
-    test_prompt "svn ignore" "${SVN_PREFIX}(△1)${SUFFIX}"
+    test_prompt "svn ignore" "(△1)"
 
     # NOTE: The update is needed!
     # See http://subversion.apache.org/faq.html#wc-out-of-date
     run_svn update
     run_svn commit -m "nothing to see here"
-    test_prompt "svn faux clean" "${SVN_PREFIX}(✔)${SUFFIX}"
+    test_prompt "svn faux clean" "(✔)"
 
     rm "${svndir}/trunk/notme"
-    test_prompt "svn clean" "${SVN_PREFIX}(✔)${SUFFIX}"
+    test_prompt "svn clean" "(✔)"
 
     # Replace svn with a that outputs nonsense to test parsing errors.
     svn() {
         echo "Nonesense"
     }
-    test_prompt "svn bad status" "${ERR_PREFIX}(unexpected svn status output)${SUFFIX}"
+    prefix="${err_prefix}"
+    test_prompt "svn bad status" "(unexpected svn status output)"
 
     # version numbers below work as of svn 1.8.13
     # http://stackoverflow.com/questions/1364618/how-do-i-determine-the-svn-working-copy-layout-version
     unset svn
     sqlite3 "${svndir}/trunk/.svn/wc.db" "PRAGMA user_version=27"
-    test_prompt "svn upgrade needed" "${ERR_PREFIX}('svn upgrade' needed)${SUFFIX}"
+    test_prompt "svn upgrade needed" "('svn upgrade' needed)"
 
+    prefix="${svn_prefix}"
     sqlite3 "${svndir}/trunk/.svn/wc.db" "PRAGMA user_version=31"
-    test_prompt "svn back to good" "${SVN_PREFIX}(✔)${SUFFIX}"
+    test_prompt "svn back to good" "(✔)"
 }
 
 test_all() {
@@ -325,11 +342,12 @@ test_outputs() {
     # wrapped correctly with color prefixes and suffixes and that those
     # have the \x01 and \x02 characters that readline requires to recognize
     # non-printing characters.
-    local SUFFIX=$(echo     -e "\x01\033[0m\x02")
-    local GIT_PREFIX=$(echo -e "\x01${BPVCS_GIT_COLOR}\x02 ")
-    local HG_PREFIX=$(echo  -e "\x01${BPVCS_HG_COLOR}\x02 ")
-    local SVN_PREFIX=$(echo -e "\x01${BPVCS_SVN_COLOR}\x02 ")
-    local ERR_PREFIX=$(echo -e "\x01${BPVCS_ERR_COLOR}\x02 ")
+    local prefix
+    local suffix=$(echo     -e "\x01\033[0m\x02")
+    local git_prefix=$(echo -e "\x01${BPVCS_GIT_COLOR}\x02 ")
+    local hg_prefix=$(echo  -e "\x01${BPVCS_HG_COLOR}\x02 ")
+    local svn_prefix=$(echo -e "\x01${BPVCS_SVN_COLOR}\x02 ")
+    local err_prefix=$(echo -e "\x01${BPVCS_ERR_COLOR}\x02 ")
 
     test_all
     echo
@@ -337,11 +355,11 @@ test_outputs() {
     # Run all tests again, this time with colors off and making sure that the
     # non-color prefixes are used.
     echo Testing without colors
-    SUFFIX=""
-    GIT_PREFIX=" git:"
-    HG_PREFIX=" hg:"
-    SVN_PREFIX=" svn:"
-    ERR_PREFIX=" ERR:"
+    suffix=""
+    git_prefix=" git:"
+    hg_prefix=" hg:"
+    svn_prefix=" svn:"
+    err_prefix=" ERR:"
     unset BPVCS_COLORS
 
     test_all
