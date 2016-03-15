@@ -1,305 +1,323 @@
 #!/usr/bin/env bash
+# Tests for bash-prompt-vcs.bash
+
+# Make sure this code works if it's called when both -e and -u are set.
 set -e
 set -u
 
-function check() {
-    echo -n "$1: "
-    # Run function once to gather output to check and then again
-    # in the local symbol space to help check for symbol leakage.
+# Test that the prompt outputs what is expected, exiting if not.
+# Run once to gather output to test_prompt and then again in the local
+# symbol space so we can test_prompt for symbol leakage after all tests have been
+# run.
+# Output the test description followed by OK. if the prompt output matches
+# the expected output or FAILED: and details if not.
+test_prompt() {
+    local -r description="$1"
+    local -r expected="$2"
+    echo -n "${description}: "
     local prompt=$(bpvcs_bash_prompt)
     bpvcs_bash_prompt >/dev/null
-    if [ "$prompt" = "$2" ]; then
+    if [[ "${prompt}" = "${expected}" ]]; then
         echo "OK."
     else
-        echo "FAILED. Expected: '$2' got '$prompt'"
-        echo $tmpdir
+        echo "FAILED. Expected: '${expected}' got '${prompt}'"
+        echo "Working trees in ${tmpdir}"
         exit
     fi
 
 }
 
-function test_none() {
-    cd "$tmpdir"
-    check "none" ""
+# Tests for non-working tree directories.
+test_none() {
+    cd "${tmpdir}"
+    test_prompt "none" ""
 }
 
-function run_git() {
+# Tests for git working trees.
+run_git() {
     git "$@" >/dev/null || echo "git run failed"
 }
 
-function test_git() {
-    local gitdir=$(mktemp -d --tmpdir=$tmpdir test_git.XXX)
-    cd "$gitdir"
+test_git() {
+    local gitdir=$(mktemp -d --tmpdir=${tmpdir} test_git.XXX)
+    cd "${gitdir}"
 
     run_git init
-    check "git init" "$GIT_PREFIX(Initial commit on master|✔)$SUFFIX"
+    test_prompt "git init" "${GIT_PREFIX}(Initial commit on master|✔)${SUFFIX}"
 
     echo "First post!" >first.txt
     run_git add first.txt
-    check "git add" "$GIT_PREFIX(Initial commit on master|●1)$SUFFIX"
+    test_prompt "git add" "${GIT_PREFIX}(Initial commit on master|●1)${SUFFIX}"
 
     run_git commit -m first
-    check "git added" "$GIT_PREFIX(master|✔)$SUFFIX"
+    test_prompt "git added" "${GIT_PREFIX}(master|✔)${SUFFIX}"
 
     echo "No tracked" >"$gitdir/notme"
-    check "git untracked" "$GIT_PREFIX(master|…1)$SUFFIX"
+    test_prompt "git untracked" "${GIT_PREFIX}(master|…1)${SUFFIX}"
 
     echo "Changed!" >first.txt
-    check "git change" "$GIT_PREFIX(master|…1△1)$SUFFIX"
+    test_prompt "git change" "${GIT_PREFIX}(master|…1△1)${SUFFIX}"
 
     echo "toooooo" >second.txt
-    check "git various" "$GIT_PREFIX(master|…2△1)$SUFFIX"
+    test_prompt "git various" "${GIT_PREFIX}(master|…2△1)${SUFFIX}"
 
     run_git add second.txt
-    check "git staged" "$GIT_PREFIX(master|…1△1●1)$SUFFIX"
+    test_prompt "git staged" "${GIT_PREFIX}(master|…1△1●1)${SUFFIX}"
 
     run_git commit -m "moar files"
-    check "git commit part" "$GIT_PREFIX(master|…1△1)$SUFFIX"
+    test_prompt "git commit part" "${GIT_PREFIX}(master|…1△1)${SUFFIX}"
 
     echo "spacey" >"spaces in filename.txt"
-    check "git spaces" "$GIT_PREFIX(master|…2△1)$SUFFIX"
+    test_prompt "git spaces" "${GIT_PREFIX}(master|…2△1)${SUFFIX}"
     rm "spaces in filename.txt"
 
     echo poo >$'\U0001F4A9'
-    check "git unicode" "$GIT_PREFIX(master|…2△1)$SUFFIX"
+    test_prompt "git unicode" "${GIT_PREFIX}(master|…2△1)${SUFFIX}"
     rm $'\U0001F4A9'
 
     # git tries to track removes so a non-git remove still looks like
     # a delete but the missing.txt is now an untracked file.
     mv second.txt missing.txt
-    check "git missing" "$GIT_PREFIX(master|…2△1●1)$SUFFIX"
+    test_prompt "git missing" "${GIT_PREFIX}(master|…2△1●1)${SUFFIX}"
     mv missing.txt second.txt
 
     run_git mv second.txt 2nd.txt
-    check "git rename" "$GIT_PREFIX(master|…1△1●1)$SUFFIX"
+    test_prompt "git rename" "${GIT_PREFIX}(master|…1△1●1)${SUFFIX}"
 
     run_git commit -a -m "save it all"
-    check "git almost clean" "$GIT_PREFIX(master|…1)$SUFFIX"
+    test_prompt "git almost clean" "${GIT_PREFIX}(master|…1)${SUFFIX}"
 
     echo "short lived third" >third.txt
     run_git add third.txt
     run_git commit -m "add third"
     run_git rm third.txt
-    check "git rm" "$GIT_PREFIX(master|…1●1)$SUFFIX"
+    test_prompt "git rm" "${GIT_PREFIX}(master|…1●1)${SUFFIX}"
     run_git commit -m "we did not want third"
 
-    echo "notme" >"$gitdir/.gitignore"
-    check "git ignore" "$GIT_PREFIX(master|…1)$SUFFIX"
+    echo "notme" >"${gitdir}/.gitignore"
+    test_prompt "git ignore" "${GIT_PREFIX}(master|…1)${SUFFIX}"
 
     run_git add ".gitignore"
     run_git commit ".gitignore" -m "nothing to see here"
-    check "git faux clean" "$GIT_PREFIX(master|✔)$SUFFIX"
+    test_prompt "git faux clean" "${GIT_PREFIX}(master|✔)${SUFFIX}"
 
-    rm "$gitdir/notme"
-    check "git clean" "$GIT_PREFIX(master|✔)$SUFFIX"
+    rm "${gitdir}/notme"
+    test_prompt "git clean" "${GIT_PREFIX}(master|✔)${SUFFIX}"
 
     run_git checkout -b riskychange
-    check "git branch" "$GIT_PREFIX(riskychange|✔)$SUFFIX"
+    test_prompt "git branch" "${GIT_PREFIX}(riskychange|✔)${SUFFIX}"
 
     run_git checkout master
-    check "git master" "$GIT_PREFIX(master|✔)$SUFFIX"
+    test_prompt "git master" "${GIT_PREFIX}(master|✔)${SUFFIX}"
 
-    function git() {
+    # Replace git with a that outputs nonsense to test parsing errors.
+    git() {
         echo "Nonesense"
     }
-    check "git bad status" "${ERR_PREFIX}(unexpected git status output)$SUFFIX"
+    test_prompt "git bad status" "${ERR_PREFIX}(unexpected git status output)${SUFFIX}"
 
     unset git
-    check "git back to good" "$GIT_PREFIX(master|✔)$SUFFIX"
+    test_prompt "git back to good" "${GIT_PREFIX}(master|✔)${SUFFIX}"
 }
 
-function run_hg() {
+
+# Tests for hg working trees.
+run_hg() {
     hg "$@" >/dev/null || echo "hg run failed"
 }
 
-function test_hg() {
+test_hg() {
     local hgdir=$(mktemp -d --tmpdir=$tmpdir test_hg.XXX)
-    cd "$hgdir"
+    cd "${hgdir}"
 
     run_hg init
-    check "hg init" "$HG_PREFIX(default|✔)$SUFFIX"
+    test_prompt "hg init" "${HG_PREFIX}(default|✔)${SUFFIX}"
 
     echo "First post!" >first.txt
     run_hg add first.txt
-    check "hg add" "$HG_PREFIX(default|△1)$SUFFIX"
+    test_prompt "hg add" "${HG_PREFIX}(default|△1)${SUFFIX}"
 
     run_hg commit -m first
-    check "hg added" "$HG_PREFIX(default|✔)$SUFFIX"
+    test_prompt "hg added" "${HG_PREFIX}(default|✔)${SUFFIX}"
 
-    echo "No tracked" >"$hgdir/notme"
-    check "hg untracked" "$HG_PREFIX(default|…1)$SUFFIX"
+    echo "No tracked" >"${hgdir}/notme"
+    test_prompt "hg untracked" "${HG_PREFIX}(default|…1)${SUFFIX}"
 
     echo "Changed!" >first.txt
-    check "hg change" "$HG_PREFIX(default|…1△1)$SUFFIX"
+    test_prompt "hg change" "${HG_PREFIX}(default|…1△1)${SUFFIX}"
 
     echo "toooooo" >second.txt
-    check "hg various" "$HG_PREFIX(default|…2△1)$SUFFIX"
+    test_prompt "hg various" "${HG_PREFIX}(default|…2△1)${SUFFIX}"
 
     run_hg add second.txt
-    check "hg add second" "$HG_PREFIX(default|…1△2)$SUFFIX"
+    test_prompt "hg add second" "${HG_PREFIX}(default|…1△2)${SUFFIX}"
 
     run_hg commit -m "moar files"
-    check "hg commit" "$HG_PREFIX(default|…1)$SUFFIX"
+    test_prompt "hg commit" "${HG_PREFIX}(default|…1)${SUFFIX}"
 
     echo "spacey" >"spaces in filename.txt"
-    check "hg spaces" "$HG_PREFIX(default|…2)$SUFFIX"
+    test_prompt "hg spaces" "${HG_PREFIX}(default|…2)${SUFFIX}"
     rm "spaces in filename.txt"
 
     echo poo >$'\U0001F4A9'
-    check "hg unicode" "$HG_PREFIX(default|…2)$SUFFIX"
+    test_prompt "hg unicode" "${HG_PREFIX}(default|…2)${SUFFIX}"
     rm $'\U0001F4A9'
 
     # hg tracks deleted but not removed files, but does not
     # auto-stage them or commit them.  So treat it as an untracked.
     mv second.txt missing.txt
-    check "hg missing" "$HG_PREFIX(default|…3)$SUFFIX"
+    test_prompt "hg missing" "${HG_PREFIX}(default|…3)${SUFFIX}"
     mv missing.txt second.txt
 
     run_hg rename second.txt 2nd.txt
-    check "hg rename" "$HG_PREFIX(default|…1△1)$SUFFIX"
+    test_prompt "hg rename" "${HG_PREFIX}(default|…1△1)${SUFFIX}"
 
     run_hg commit -m "save it all"
-    check "hg almost clean" "$HG_PREFIX(default|…1)$SUFFIX"
+    test_prompt "hg almost clean" "${HG_PREFIX}(default|…1)${SUFFIX}"
 
     echo "short lived third" >third.txt
     run_hg add third.txt
     run_hg commit -m "add third"
     run_hg rm third.txt
-    check "hg rm" "$HG_PREFIX(default|…1△1)$SUFFIX"
+    test_prompt "hg rm" "${HG_PREFIX}(default|…1△1)${SUFFIX}"
     run_hg commit -m "we did not want third"
 
-    echo "notme" >"$hgdir/.hgignore"
-    check "hg ignore" "$HG_PREFIX(default|…1)$SUFFIX"
+    echo "notme" >"${hgdir}/.hgignore"
+    test_prompt "hg ignore" "${HG_PREFIX}(default|…1)${SUFFIX}"
 
     run_hg add ".hgignore"
     run_hg commit ".hgignore" -m "nothing to see here"
-    check "hg faux clean" "$HG_PREFIX(default|✔)$SUFFIX"
+    test_prompt "hg faux clean" "${HG_PREFIX}(default|✔)${SUFFIX}"
 
-    rm "$hgdir/notme"
-    check "hg clean" "$HG_PREFIX(default|✔)$SUFFIX"
+    rm "${hgdir}/notme"
+    test_prompt "hg clean" "${HG_PREFIX}(default|✔)${SUFFIX}"
 
     run_hg branch riskychange
-    check "hg branch" "$HG_PREFIX(riskychange|✔)$SUFFIX"
+    test_prompt "hg branch" "${HG_PREFIX}(riskychange|✔)${SUFFIX}"
 
     run_hg branch --clean
-    check "hg default again" "$HG_PREFIX(default|✔)$SUFFIX"
+    test_prompt "hg default again" "${HG_PREFIX}(default|✔)${SUFFIX}"
 
-    function hg() {
+    # Replace hg with a that outputs nonsense to test parsing errors.
+    hg() {
         echo "branch: fooled you"
     }
-    check "hg bad status" "${ERR_PREFIX}(unexpected hg summary output)$SUFFIX"
+    test_prompt "hg bad status" "${ERR_PREFIX}(unexpected hg summary output)${SUFFIX}"
 
-    function hg() {
+    hg() {
         echo "commit: fooledyou"
     }
-    check "hg bad status" "${ERR_PREFIX}(unexpected hg summary output)$SUFFIX"
+    test_prompt "hg bad status" "${ERR_PREFIX}(unexpected hg summary output)${SUFFIX}"
 
     unset hg
-    check "hg back to good" "$HG_PREFIX(default|✔)$SUFFIX"
+    test_prompt "hg back to good" "${HG_PREFIX}(default|✔)${SUFFIX}"
 }
 
-function run_svnadmin() {
+
+# Tests for svn sandboxes.
+run_svnadmin() {
     svnadmin "$@" >/dev/null || echo "svnadmin run failed"
 }
 
-function run_svn() {
+run_svn() {
     svn "$@" >/dev/null || echo "svn run failed"
 }
 
-function test_svn() {
-    local svndir=$(mktemp -d --tmpdir=$tmpdir test_svn.XXX)
-    cd "$svndir"
+test_svn() {
+    local svndir=$(mktemp -d --tmpdir=${tmpdir} test_svn.XXX)
+    cd "${svndir}"
     run_svnadmin create SVNROOT
 
-    run_svn checkout "file://$svndir/SVNROOT" trunk
+    run_svn checkout "file://${svndir}/SVNROOT" trunk
     cd "trunk"
-    check "svn init" "$SVN_PREFIX(✔)$SUFFIX"
+    test_prompt "svn init" "${SVN_PREFIX}(✔)${SUFFIX}"
 
     echo "First post!" >first.txt
     run_svn add first.txt
-    check "svn add" "$SVN_PREFIX(△1)$SUFFIX"
+    test_prompt "svn add" "${SVN_PREFIX}(△1)${SUFFIX}"
 
     run_svn commit -m first
-    check "svn added" "$SVN_PREFIX(✔)$SUFFIX"
+    test_prompt "svn added" "${SVN_PREFIX}(✔)${SUFFIX}"
 
-    echo "No tracked" >"$svndir/trunk/notme"
-    check "svn untracked" "$SVN_PREFIX(…1)$SUFFIX"
+    echo "No tracked" >"${svndir}/trunk/notme"
+    test_prompt "svn untracked" "${SVN_PREFIX}(…1)${SUFFIX}"
 
     echo "Changed!" >first.txt
-    check "svn change" "$SVN_PREFIX(…1△1)$SUFFIX"
+    test_prompt "svn change" "${SVN_PREFIX}(…1△1)${SUFFIX}"
 
     echo "toooooo" >second.txt
-    check "svn various" "$SVN_PREFIX(…2△1)$SUFFIX"
+    test_prompt "svn various" "${SVN_PREFIX}(…2△1)${SUFFIX}"
 
     run_svn add second.txt
-    check "svn add second" "$SVN_PREFIX(…1△2)$SUFFIX"
+    test_prompt "svn add second" "${SVN_PREFIX}(…1△2)${SUFFIX}"
 
     run_svn commit -m "moar files"
-    check "svn commit" "$SVN_PREFIX(…1)$SUFFIX"
+    test_prompt "svn commit" "${SVN_PREFIX}(…1)${SUFFIX}"
 
     echo "spacey" >"spaces in filename.txt"
-    check "svn spaces" "$SVN_PREFIX(…2)$SUFFIX"
+    test_prompt "svn spaces" "${SVN_PREFIX}(…2)${SUFFIX}"
     rm "spaces in filename.txt"
 
     echo poo >$'\U0001F4A9'
-    check "svn unicode" "$SVN_PREFIX(…2)$SUFFIX"
+    test_prompt "svn unicode" "${SVN_PREFIX}(…2)${SUFFIX}"
     rm $'\U0001F4A9'
 
     # Like hg, svn tracks deleted but not removed files, but does not
     # auto-stage them or commit them.  So treat it as an untracked.
     mv second.txt missing.txt
-    check "svn missing" "$SVN_PREFIX(…3)$SUFFIX"
+    test_prompt "svn missing" "${SVN_PREFIX}(…3)${SUFFIX}"
     mv missing.txt second.txt
 
     # A rename counts as two changes, an add and a delete
     run_svn rename second.txt 2nd.txt
-    check "svn rename" "$SVN_PREFIX(…1△2)$SUFFIX"
+    test_prompt "svn rename" "${SVN_PREFIX}(…1△2)${SUFFIX}"
 
     run_svn commit -m "save it all"
-    check "svn almost clean" "$SVN_PREFIX(…1)$SUFFIX"
+    test_prompt "svn almost clean" "${SVN_PREFIX}(…1)${SUFFIX}"
 
     echo "short lived third" >third.txt
     run_svn add third.txt
     run_svn commit -m "add third"
     run_svn rm third.txt
-    check "svn rm" "$SVN_PREFIX(…1△1)$SUFFIX"
+    test_prompt "svn rm" "${SVN_PREFIX}(…1△1)${SUFFIX}"
     run_svn commit -m "we did not want third"
 
     run_svn propset svn:ignore "notme" .
-    check "svn ignore" "$SVN_PREFIX(△1)$SUFFIX"
+    test_prompt "svn ignore" "${SVN_PREFIX}(△1)${SUFFIX}"
 
     # NOTE: The update is needed!
     # See http://subversion.apache.org/faq.html#wc-out-of-date
     run_svn update
     run_svn commit -m "nothing to see here"
-    check "svn faux clean" "$SVN_PREFIX(✔)$SUFFIX"
+    test_prompt "svn faux clean" "${SVN_PREFIX}(✔)${SUFFIX}"
 
-    rm "$svndir/trunk/notme"
-    check "svn clean" "$SVN_PREFIX(✔)$SUFFIX"
+    rm "${svndir}/trunk/notme"
+    test_prompt "svn clean" "${SVN_PREFIX}(✔)${SUFFIX}"
 
-    function svn() {
+    # Replace svn with a that outputs nonsense to test parsing errors.
+    svn() {
         echo "Nonesense"
     }
-    check "svn bad status" "${ERR_PREFIX}(unexpected svn status output)$SUFFIX"
+    test_prompt "svn bad status" "${ERR_PREFIX}(unexpected svn status output)${SUFFIX}"
 
     # version numbers below work as of svn 1.8.13
     # http://stackoverflow.com/questions/1364618/how-do-i-determine-the-svn-working-copy-layout-version
     unset svn
-    sqlite3 "$svndir/trunk/.svn/wc.db" "PRAGMA user_version=27"
-    check "svn upgrade needed" "${ERR_PREFIX}('svn upgrade' needed)$SUFFIX"
+    sqlite3 "${svndir}/trunk/.svn/wc.db" "PRAGMA user_version=27"
+    test_prompt "svn upgrade needed" "${ERR_PREFIX}('svn upgrade' needed)${SUFFIX}"
 
-    sqlite3 "$svndir/trunk/.svn/wc.db" "PRAGMA user_version=31"
-    check "svn back to good" "$SVN_PREFIX(✔)$SUFFIX"
+    sqlite3 "${svndir}/trunk/.svn/wc.db" "PRAGMA user_version=31"
+    test_prompt "svn back to good" "${SVN_PREFIX}(✔)${SUFFIX}"
 }
 
-function test_all() {
+test_all() {
     test_none && \
     test_git && \
     test_hg && \
     test_svn
 }
 
-function test_outputs() {
+test_outputs() {
     # Make a home to work in.
     local tmpdir=$(mktemp -d --tmpdir bpvcs-test-XXX)
 
@@ -307,11 +325,11 @@ function test_outputs() {
     # wrapped correctly with color prefixes and suffixes and that those
     # have the \x01 and \x02 characters that readline requires to recognize
     # non-printing characters.
-    local SUFFIX=$(echo -e "\x01\033[0m\x02")
-    local GIT_PREFIX=$(echo -e "\x01$BPVCS_GIT_COLOR\x02 ")
-    local HG_PREFIX=$(echo -e "\x01$BPVCS_HG_COLOR\x02 ")
-    local SVN_PREFIX=$(echo -e "\x01$BPVCS_SVN_COLOR\x02 ")
-    local ERR_PREFIX=$(echo -e "\x01$BPVCS_ERR_COLOR\x02 ")
+    local SUFFIX=$(echo     -e "\x01\033[0m\x02")
+    local GIT_PREFIX=$(echo -e "\x01${BPVCS_GIT_COLOR}\x02 ")
+    local HG_PREFIX=$(echo  -e "\x01${BPVCS_HG_COLOR}\x02 ")
+    local SVN_PREFIX=$(echo -e "\x01${BPVCS_SVN_COLOR}\x02 ")
+    local ERR_PREFIX=$(echo -e "\x01${BPVCS_ERR_COLOR}\x02 ")
 
     test_all
     echo
@@ -329,89 +347,107 @@ function test_outputs() {
     test_all
 
     # Clean up the temp dir.
-    if [ -n "$tmpdir" ]; then
-        rm -rf "$tmpdir"
+    if [[ -n "${tmpdir}" ]]; then
+        rm -rf "${tmpdir}"
     fi
 }
 
-function shell_state() {
+# Output a list of shell symbols - variables and functions in a stable order.
+shell_state() {
     compgen -A variable | sort
     compgen -A function | sort
 }
 
-echo Testing sourcing and symbols
+test_load_and_symbols() {
+    echo Testing sourcing and symbols
 
-# unset everything it might provide in case it's running on the test host.
-unset BPVCS_CHANGED_INDICATOR
-unset BPVCS_CLEAN_INDICATOR
-unset BPVCS_COLORS
-unset BPVCS_ERR_COLOR
-unset BPVCS_GIT_COLOR
-unset BPVCS_HG_COLOR
-unset BPVCS_STAGED_INDICATOR
-unset BPVCS_SVN_COLOR
-unset BPVCS_UNTRACKED_INDICATOR
-unset bpvcs_bash_prompt
+    # unset everything it might provide in case it's running on the test host.
+    unset BPVCS_CHANGED_INDICATOR
+    unset BPVCS_CLEAN_INDICATOR
+    unset BPVCS_COLORS
+    unset BPVCS_ERR_COLOR
+    unset BPVCS_GIT_COLOR
+    unset BPVCS_HG_COLOR
+    unset BPVCS_RESET_COLOR
+    unset BPVCS_STAGED_INDICATOR
+    unset BPVCS_SVN_COLOR
+    unset BPVCS_UNTRACKED_INDICATOR
+    unset bpvcs_bash_prompt
 
-test_bpvcs_before=$(shell_state)
+    test_bpvcs_before=$(shell_state)
 
-source bash-prompt-vcs.bash
+    source bash-prompt-vcs.bash
 
-test_bpvcs_loaded=$(shell_state)
+    test_bpvcs_loaded=$(shell_state)
 
-test_bpvcs_new_symbols=$(diff <(printf "%s" "$test_bpvcs_before" )  <(printf "%s" "$test_bpvcs_loaded") \
-                            | grep '>' \
-                            | grep -v '^> PIPESTATUS$' \
-                            | grep -v '^> test_bpvcs_')
-
-test_bpvcs_expected_symbols=""
-test_bpvcs_expected_symbols+=$'> BPVCS_CHANGED_INDICATOR\n'
-test_bpvcs_expected_symbols+=$'> BPVCS_CLEAN_INDICATOR\n'
-test_bpvcs_expected_symbols+=$'> BPVCS_COLORS\n'
-test_bpvcs_expected_symbols+=$'> BPVCS_ERR_COLOR\n'
-test_bpvcs_expected_symbols+=$'> BPVCS_GIT_COLOR\n'
-test_bpvcs_expected_symbols+=$'> BPVCS_HG_COLOR\n'
-test_bpvcs_expected_symbols+=$'> BPVCS_STAGED_INDICATOR\n'
-test_bpvcs_expected_symbols+=$'> BPVCS_SVN_COLOR\n'
-test_bpvcs_expected_symbols+=$'> BPVCS_UNTRACKED_INDICATOR\n'
-test_bpvcs_expected_symbols+=$'> bpvcs_bash_prompt'
-
-if [ "$test_bpvcs_new_symbols" != "$test_bpvcs_expected_symbols" ]; then
-    echo "Unexpected symbols when loading: $test_bpvcs_new_symbols"
-    exit
-fi
-echo
-
-# Confirm these rather than using the variables up above so the tests remain
-# somewhat readable and useful for looking at to see what the code will output.
-echo Testing default indicators
-if [ "$BPVCS_UNTRACKED_INDICATOR" != "…" ]; then echo "Wrong default untracked indicator"; exit; fi
-if [ "$BPVCS_CHANGED_INDICATOR" != "△" ]; then echo "Wrong default changed indicator"; exit; fi
-if [ "$BPVCS_STAGED_INDICATOR" != "●" ]; then echo "Wrong default staged indicator"; exit; fi
-if [ "$BPVCS_CLEAN_INDICATOR" != "✔" ]; then echo "Wrong default clean indicator"; exit; fi
-echo
-
-# Make sure we have default colors defined and that we default to using color.
-echo Testing default colors
-if [ -z "$BPVCS_GIT_COLOR" ]; then echo "No GIT default color!"; exit; fi
-if [ -z "$BPVCS_HG_COLOR" ]; then echo "No HG default color!"; exit; fi
-if [ -z "$BPVCS_SVN_COLOR" ]; then echo "No SVN default color!"; exit; fi
-if [ -z "$BPVCS_COLORS" ]; then echo "No default color!"; exit; fi
-
-test_outputs
-echo
-
-echo Testing symbol leakage after all tests run
-
-test_bpvcs_after=$(shell_state)
-
-test_bpvcs_leaked_symbols=$(diff <(printf "%s" "$test_bpvcs_loaded" )  <(printf "%s" "$test_bpvcs_after") \
+    test_bpvcs_new_symbols=$(diff <(printf "%s" "${test_bpvcs_before}" )  <(printf "%s" "${test_bpvcs_loaded}") \
                                 | grep '>' \
                                 | grep -v '^> PIPESTATUS$' \
-                                | grep -v '^> OLDPWD$' \
-                                | grep -v '^> test_bpvcs_')
+                                | grep -v '^> test_bpvcs_' \
+                                | cut -c3-)
 
-if [ -n "$test_bpvcs_leaked_symbols" ]; then
-    echo "Unexpected symbols after tests ran: $test_bpvcs_leaked_symbols"
-    exit
-fi
+    test_bpvcs_expected_symbols=""
+    test_bpvcs_expected_symbols+=$'BPVCS_CHANGED_INDICATOR\n'
+    test_bpvcs_expected_symbols+=$'BPVCS_CLEAN_INDICATOR\n'
+    test_bpvcs_expected_symbols+=$'BPVCS_COLORS\n'
+    test_bpvcs_expected_symbols+=$'BPVCS_ERR_COLOR\n'
+    test_bpvcs_expected_symbols+=$'BPVCS_GIT_COLOR\n'
+    test_bpvcs_expected_symbols+=$'BPVCS_HG_COLOR\n'
+    test_bpvcs_expected_symbols+=$'BPVCS_RESET_COLOR\n'
+    test_bpvcs_expected_symbols+=$'BPVCS_STAGED_INDICATOR\n'
+    test_bpvcs_expected_symbols+=$'BPVCS_SVN_COLOR\n'
+    test_bpvcs_expected_symbols+=$'BPVCS_UNTRACKED_INDICATOR\n'
+    test_bpvcs_expected_symbols+=$'bpvcs_bash_prompt'
+
+    if [[ "${test_bpvcs_new_symbols}" != "${test_bpvcs_expected_symbols}" ]]; then
+        test_bpvcs_new_symbols_diff=$(diff <(printf "%s" "${test_bpvcs_expected_symbols}")  <(printf "%s" "${test_bpvcs_new_symbols}") \
+                                         | grep '>')
+        echo -e "FAILED: Unexpected symbols when loading:\n${test_bpvcs_new_symbols_diff}"
+        exit
+    fi
+}
+
+# Test that the defaults are as expected.
+test_defaults() {
+    # Confirm these rather than using the variables up above so the tests remain
+    # somewhat readable and useful for looking at to see what the code will output.
+    echo Testing default indicators
+    if [[ "${BPVCS_UNTRACKED_INDICATOR}" != "…" ]]; then echo "FAILED: Wrong default untracked indicator"; exit; fi
+    if [[ "${BPVCS_CHANGED_INDICATOR}" != "△" ]];   then echo "FAILED: Wrong default changed indicator";   exit; fi
+    if [[ "${BPVCS_STAGED_INDICATOR}" != "●" ]];    then echo "FAILED: Wrong default staged indicator";    exit; fi
+    if [[ "${BPVCS_CLEAN_INDICATOR}" != "✔" ]];     then echo "FAILED: Wrong default clean indicator";     exit; fi
+
+    # Make sure we have default colors defined and that we default to using color.
+    echo Testing default colors
+    if [[ -z "${BPVCS_GIT_COLOR}" ]]; then echo "FAILED: No GIT default color!"; exit; fi
+    if [[ -z "${BPVCS_HG_COLOR}" ]];  then echo "FAILED: No HG default color!";  exit; fi
+    if [[ -z "${BPVCS_SVN_COLOR}" ]]; then echo "FAILED: No SVN default color!"; exit; fi
+    if [[ -z "${BPVCS_COLORS}" ]];    then echo "FAILED: No default color!";     exit; fi
+}
+
+test_symbol_leakage() {
+    echo Testing symbol leakage after all tests run
+
+    test_bpvcs_after=$(shell_state)
+
+    test_bpvcs_leaked_symbols=$(diff <(printf "%s" "${test_bpvcs_loaded}" )  <(printf "%s" "${test_bpvcs_after}") \
+                                    | grep '>' \
+                                    | grep -v '^> PIPESTATUS$' \
+                                    | grep -v '^> OLDPWD$' \
+                                    | grep -v '^> test_bpvcs_')
+
+    if [[ -n "${test_bpvcs_leaked_symbols}" ]]; then
+        echo "FAILED: Unexpected symbols after tests ran: ${test_bpvcs_leaked_symbols}"
+        exit
+    fi
+}
+
+main() {
+    test_load_and_symbols
+    test_defaults
+    test_outputs
+    test_symbol_leakage
+    echo
+}
+
+main
