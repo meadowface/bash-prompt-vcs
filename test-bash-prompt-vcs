@@ -419,10 +419,11 @@ test_defaults() {
 
     # Make sure we have default colors defined and that we default to using color.
     echo Testing default colors
-    if [[ -z "${BPVCS_GIT_COLOR}" ]]; then echo "FAILED: No GIT default color!"; exit; fi
-    if [[ -z "${BPVCS_HG_COLOR}" ]];  then echo "FAILED: No HG default color!";  exit; fi
-    if [[ -z "${BPVCS_SVN_COLOR}" ]]; then echo "FAILED: No SVN default color!"; exit; fi
-    if [[ -z "${BPVCS_COLORS}" ]];    then echo "FAILED: No default color!";     exit; fi
+    if [[ -z "${BPVCS_GIT_COLOR}" ]];   then echo "FAILED: No GIT default color!";    exit; fi
+    if [[ -z "${BPVCS_HG_COLOR}" ]];    then echo "FAILED: No HG default color!";     exit; fi
+    if [[ -z "${BPVCS_SVN_COLOR}" ]];   then echo "FAILED: No SVN default color!";    exit; fi
+    if [[ -z "${BPVCS_RESET_COLOR}" ]]; then echo "FAILED: No reset colors default!"; exit; fi
+    if [[ -z "${BPVCS_COLORS}" ]];      then echo "FAILED: No default color!";        exit; fi
 }
 
 test_symbol_leakage() {
