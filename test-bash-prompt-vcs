@@ -129,6 +129,28 @@ test_git() {
     prefix="${git_prefix}"
     unset git
     test_prompt "git back to good" "(master|✔)"
+
+    # Select a home for the clone but remove it as git clone will create it.
+    local gitclonedir=$(mktemp -d --tmpdir=${tmpdir} test_gitclone.XXX)
+    rmdir "${gitclonedir}"
+    cd "${tmpdir}"
+    run_git clone "${gitdir}" "${gitclonedir}"
+    cd "${gitclonedir}"
+    test_prompt "git clone clean" "(master|✔)"
+
+    # Put clone ahead of remote (original)
+    echo "oneoneone" >>first.txt
+    run_git commit -a -m "one eleven"
+    test_prompt "git clone ahead" "(master⇡|✔)"
+
+    cd "${gitdir}"
+    echo "too" >>2nd.txt
+    run_git commit -a -m "also"
+
+    cd "${gitclonedir}"
+    test_prompt "git clone ahead/behind prefetch" "(master⇡|✔)"
+    run_git fetch
+    test_prompt "git clone ahead/behind postfetch" "(master⇡⇣|✔)"
 }
 
 
@@ -380,6 +402,8 @@ test_load_and_symbols() {
     echo Testing sourcing and symbols
 
     # unset everything it might provide in case it's running on the test host.
+    unset BPVCS_AHEAD_INDICATOR
+    unset BPVCS_BEHIND_INDICATOR
     unset BPVCS_CHANGED_INDICATOR
     unset BPVCS_CLEAN_INDICATOR
     unset BPVCS_COLORS
@@ -405,6 +429,8 @@ test_load_and_symbols() {
                                 | cut -c3-)
 
     test_bpvcs_expected_symbols=""
+    test_bpvcs_expected_symbols+=$'BPVCS_AHEAD_INDICATOR\n'
+    test_bpvcs_expected_symbols+=$'BPVCS_BEHIND_INDICATOR\n'
     test_bpvcs_expected_symbols+=$'BPVCS_CHANGED_INDICATOR\n'
     test_bpvcs_expected_symbols+=$'BPVCS_CLEAN_INDICATOR\n'
     test_bpvcs_expected_symbols+=$'BPVCS_COLORS\n'
@@ -434,6 +460,8 @@ test_defaults() {
     if [[ "${BPVCS_CHANGED_INDICATOR}" != "△" ]];   then echo "FAILED: Wrong default changed indicator";   exit; fi
     if [[ "${BPVCS_STAGED_INDICATOR}" != "●" ]];    then echo "FAILED: Wrong default staged indicator";    exit; fi
     if [[ "${BPVCS_CLEAN_INDICATOR}" != "✔" ]];     then echo "FAILED: Wrong default clean indicator";     exit; fi
+    if [[ "${BPVCS_AHEAD_INDICATOR}" != "⇡" ]];     then echo "FAILED: Wrong default ahead indicator";     exit; fi
+    if [[ "${BPVCS_BEHIND_INDICATOR}" != "⇣" ]];    then echo "FAILED: Wrong default behind indicator";    exit; fi
 
     # Make sure we have default colors defined and that we default to using color.
     echo Testing default colors
@@ -453,6 +481,7 @@ test_symbol_leakage() {
                                     | grep '>' \
                                     | grep -v '^> PIPESTATUS$' \
                                     | grep -v '^> OLDPWD$' \
+                                    | grep -v '^> BASH_REMATCH$' \
                                     | grep -v '^> test_bpvcs_')
 
     if [[ -n "${test_bpvcs_leaked_symbols}" ]]; then

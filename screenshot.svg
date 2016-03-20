@@ -2,7 +2,7 @@
 <svg version="1.1"
      xmlns="http://www.w3.org/2000/svg"
      xmlns:xlink="http://www.w3.org/1999/xlink"
-     width="850" height="300"
+     width="850" height="320"
 >
   <!--
         github won't allow SVG images in READMEs.
@@ -37,12 +37,13 @@
       }
     ]]></style>
   </defs>
-  <rect x="0" y="0" width="850" height="300" class="background"/>
+  <rect x="0" y="0" width="850" height="320" class="background"/>
   <text font-weight="bold" font-size="16" font-family="Consolas, Menlo, Courier, monospace" class="prompt">
     <tspan x="20" y="35">user@host:~/project</tspan>
-    <tspan class="git">(master|…2△1)<tspan class="prompt">$</tspan></tspan>
+    <tspan class="git">(master⇡|…2△1)<tspan class="prompt">$</tspan></tspan>
     <tspan x="400" class="comment">        # A git sandbox with two untracked files</tspan>
     <tspan x="400" dy="18" class="comment"># and one modified.</tspan>
+    <tspan x="400" dy="18" class="comment"># Where the local tree is ahead of the remote.</tspan>
 
     <tspan x="20" dy="45">user@host:~/dotfiles</tspan>
     <tspan class="git">(refactor|△1●1)<tspan class="prompt">$</tspan></tspan>

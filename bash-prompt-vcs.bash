@@ -13,6 +13,8 @@ BPVCS_UNTRACKED_INDICATOR="…"           # items not in version control
 BPVCS_CHANGED_INDICATOR="△"             # items that need to be committed
 BPVCS_STAGED_INDICATOR="●"              # items that are staged for commit
 BPVCS_CLEAN_INDICATOR="✔"               # used when cwd has none of the above
+BPVCS_AHEAD_INDICATOR="⇡"               # used when local is ahead of remote
+BPVCS_BEHIND_INDICATOR="⇣"              # used when remote is ahead of local
 BPVCS_GIT_COLOR="\033[0;32m"            # git defaults to green
 BPVCS_HG_COLOR="\033[0;36m"             # hg defaults to cyan
 BPVCS_SVN_COLOR="\033[0;35m"            # svn defaults to purple
@@ -63,6 +65,20 @@ bpvcs_bash_prompt() {
                 ((untracked++))
             elif [[ "${x}${y}" = "##" ]]; then
                 branch=${line:3}
+
+                # Decorate branch name with a remote branch status indicator.
+                # Rendered in wt_shortstatus_print_tracking()
+                # in https://github.com/git/git/blob/master/wt-status.c
+                # Branch names won't contain '...'
+                # (https://git-scm.com/docs/git-check-ref-format)
+                local remote="${branch#*...}"  # grab everything after ...
+                branch="${branch%%...*}"       # grab everything before ...
+                if [[ $remote =~ .*\[.*ahead.*\] ]]; then
+                    branch="${branch}${BPVCS_AHEAD_INDICATOR}"
+                fi
+                if [[ $remote =~ .*\[.*behind.*\] ]]; then
+                    branch="${branch}${BPVCS_BEHIND_INDICATOR}"
+                fi
             elif [[ "${y}" = "M" ]]; then
                 ((changed++))
             else
@@ -70,7 +86,8 @@ bpvcs_bash_prompt() {
             fi
             #NOTE: -z would complicate parsing dramatically because of renames
             #      and it's not worth it since git escapes pretty well.
-        done < <(git status --porcelain --branch 2>/dev/null || echo -e "xx $?")
+            # Set locale so things like ahead/behind are in English and match the above.
+        done < <(LC_ALL=C git status --porcelain --branch 2>/dev/null || echo -e "xx $?")
 
         vcs="git"
         return 0

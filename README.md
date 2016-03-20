@@ -44,6 +44,8 @@ Environment Variable        | Default | Description
 `BPVCS_CHANGED_INDICATOR`   | △ <br/>(U+25B3) | Indicates items that need to be committed.
 `BPVCS_STAGED_INDICATOR`    | ● <br/>(U+25CF) | Indicates items that are already staged for commit.
 `BPVCS_CLEAN_INDICATOR`     | ✔ <br/>(U+2714) | Indicates that current directory has none of the above.
+`BPVCS_AHEAD_INDICATOR`     | ⇡ <br>(U+21E1)  | Indicates that the local tree is ahead of the remote (need to push)
+`BPVCS_BEHIND_INDICATOR`    | ⇣ <br>(U+21E3)  | Indicates that the local tree is behind the remote (need to pull)
 `BPVCS_GIT_COLOR`           | `\033[0;32m` <br/>(green)  | Sequence used to color git working trees.
 `BPVCS_HG_COLOR`            | `\033[0;36m` <br/>(cyan)   | Sequence used to color hg working trees.
 `BPVCS_SVN_COLOR`           | `\033[0;35m` <br/>(purple) | Sequence used to color svn sandboxes.
@@ -115,7 +117,7 @@ Similar Projects & Inspirations
 * [sexy-bash-prompt](https://github.com/twolfson/sexy-bash-prompt) <br/>
   Has tests!  I like the delta-icon.  A bit too much color.
 * https://github.com/sindresorhus/pure <br/>
-  zsh not bash, but I like the indicators and will likely use them if I add upstream status.
+  zsh not bash, but I liked the indicators and used them for git upstream status.
 * [bash_vcs](https://github.com/mfouesneau/bash_vcs) <br/>
   Nice clean code.
 * [other projects on github with similar names](https://github.com/search?utf8=%E2%9C%93&q=bash+vcs+prompt&type=Repositories&ref=searchresults)
@@ -140,6 +142,5 @@ Future Thoughts
 These are thoughts for later.  They may or may not be implemented.
 
 * Maybe hide or abbreviate default branch names like master in git and default in hg to reduce noise in common cases.
-* Upstream ahead/behind status might be worth removing "No network" as a principle.
 * Put different vcs functions into separate files that can be conditionallly sourced?
 * Don't "expose" configuration variables with default values, just have deafult values...
