@@ -37,7 +37,7 @@
       }
     ]]></style>
   </defs>
-  <rect x="0" y="0" width="850" height="320" class="background"/>
+  <rect x="0" y="0" rx="20" ry="20" width="850" height="320" class="background"/>
   <text font-weight="bold" font-size="16" font-family="Consolas, Menlo, Courier, monospace" class="prompt">
     <tspan x="20" y="35">user@host:~/project</tspan>
     <tspan class="git">(master⇡|…2△1)<tspan class="prompt">$</tspan></tspan>

@@ -4,6 +4,8 @@ Show the state of [git](https://git-scm.com/), [Mercurial (hg)](https://www.merc
 and [Subversion (svn)](https://subversion.apache.org/) working trees as ambient information in
 the bash prompt.
 
+![Screenshot](screenshot.png "Screenshot")
+[source](screenshot.svg)
 
 Installation
 ------------
@@ -26,11 +28,6 @@ Installation
    PS1="\u@\h:\w\$(bpvcs_bash_prompt)\$ "
    ```
    Note that **the backslash before `$(bpvcs…` is necessary.**
-
-3. You will now see prompts like the following when you're in working tree directories.
-
-   ![Screenshot](screenshot.png "Screenshot")
-   [source](screenshot.svg)
 
 
 Configuration
@@ -55,8 +52,8 @@ Environment Variable        | Default | Description
 
 The indicators can be more than one character if desired.
 
-The color sequences are terminal-dependent.  The default [ANSI-
-escapes](https://en.wikipedia.org/wiki/ANSI_escape_code#Colors) should work in
+The color sequences are terminal-dependent.  The default
+[ANSI-escapes](https://en.wikipedia.org/wiki/ANSI_escape_code#Colors) should work in
 most terminals.  If you have trouble, see if your `$TERM` variable is set to
 something unusual.  See also: [Terminal codes introduction](http://wiki.bash-
 hackers.org/scripting/terminalcodes#foreground_coloring).
@@ -85,16 +82,16 @@ Below are the (arbitrary) principles applied.
   * Minimize noise and complexity.  I don't want to need a Rosetta stone to interpret the prompt.
   * Don't add anything to the prompt if not in a working tree.
 * **Easy-to-audit.**  This is going into the shell environment I live in, I'd like to understand it.
-  * Short but not minimal.  As in, don't do so much it's long to read but don't make it so terse as to be cryptic.
-  * Limit side-effects & pollution.  Don't spew too many functions and variables into my shell environment.
+  * Short but not minimal.  Don't do so much it's long to read but don't make it so terse as to be cryptic.
+  * Limit side-effects & pollution.  Don't spew too many functions and variables into the shell environment.
 * **Use bash.**
   * Don't spin up another interpreter, [no matter how tempting](http://www.python.org).
-  * Code in the bash dialect as opposed to generic [Posix shell](http://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18).  It's a bash prompt not a shell-prompt.
-* **No network.**  My local prompt should not require net access.
+  * Code in the bash dialect as opposed to generic [Posix shell](http://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18).  It's a bash-prompt not a shell-prompt.
+* **No network.**  The local prompt should not require net access.
 * Respect abstraction barriers.
   * Run `git status` instead of looking in `.git`.
 * Spawn as few processes as possible.
-  Note that this isn't the same thing as speed.  Modern machines can do a *lot* before I would notice a delay in the prompt display.  This is more of a hygiene thing.
+  Note that this isn't the same thing as speed.  Modern machines can do a *lot* before causing a delay in the prompt display.  This is more of a hygiene thing.
 * Try to encourage clean working trees.  The prompt for a clean tree should have a visceral good feel to it if possible.
 * Get better at `bash`.  Getting this to work doesn't take too long, but take
   some time to look at bash style guides and best practices and try to follow.
@@ -102,39 +99,26 @@ Below are the (arbitrary) principles applied.
 
 Similar Projects & Inspirations
 -------------------------------
-* https://gist.github.com/henrik/31631 <br/>
-  Short and simple, git-only.  Suggested `--porcelain` in the comments.
-* [bash-git-prompt](https://github.com/magicmonty/bash-git-prompt/) <br/>
-  Modeled the output after this one as I liked its terseness.
-* [vcprompt](https://github.com/djl/vcprompt) <br/>
-  Unmaintained, but the first I came across that made me think to include hg and svn.
-* https://coderwall.com/p/pn8f0g/show-your-git-status-and-branch-in-color-at-the-command-prompt <br/>
-  I liked the simplicity and progression of this article.
-* [gitprompt.sh](https://github.com/jcgoble3/gitstuff/blob/master/gitprompt.sh) <br/>
-  Simple.  Clean.  Has the number-indicator output pattern.
-* [Promptastic](http://painl.es/promptastic/) <br/>
-  I really like the look of this one in the screenshot, but would hate to have that much information in my prompt.
-* [sexy-bash-prompt](https://github.com/twolfson/sexy-bash-prompt) <br/>
-  Has tests!  I like the delta-icon.  A bit too much color.
-* https://github.com/sindresorhus/pure <br/>
-  zsh not bash, but I liked the indicators and used them for git upstream status.
-* [bash_vcs](https://github.com/mfouesneau/bash_vcs) <br/>
-  Nice clean code.
-* [other projects on github with similar names](https://github.com/search?utf8=%E2%9C%93&q=bash+vcs+prompt&type=Repositories&ref=searchresults)
+* https://gist.github.com/henrik/31631 - Short and simple, git-only.  Suggested `--porcelain` in the comments.
+* [bash-git-prompt](https://github.com/magicmonty/bash-git-prompt/) - Modeled the output after this one as I liked its terseness.
+* [vcprompt](https://github.com/djl/vcprompt) - Unmaintained, but the first I came across that made me think to include hg and svn.
+* [coderwall article](https://coderwall.com/p/pn8f0g/show-your-git-status-and-branch-in-color-at-the-command-prompt) - I liked the simplicity and progression of this article.
+* [gitprompt.sh](https://github.com/jcgoble3/gitstuff/blob/master/gitprompt.sh) - Simple.  Clean.  Has the number-indicator output pattern.
+* [Promptastic](http://painl.es/promptastic/) - I really like the look of this one in the screenshot, but would hate to have that much information in my prompt.
+* [sexy-bash-prompt](https://github.com/twolfson/sexy-bash-prompt) - Has tests!  I like the delta-icon.  A bit too much color.
+* [pure](https://github.com/sindresorhus/pure) - zsh not bash, but I like the indicators and use them for git upstream status.
+* [bash_vcs](https://github.com/mfouesneau/bash_vcs) - Nice clean code.
+* [other projects on github](https://github.com/search?utf8=%E2%9C%93&q=bash+vcs+prompt&type=Repositories&ref=searchresults) - with similar names.
 
 
 References
 ----------
-* [BashGuide](http://mywiki.wooledge.org/BashGuide) <br/>
-  I found myself returning to this often for reference.
-* http://stackoverflow.com/questions/4471364/how-do-i-list-the-functions-defined-in-my-shell <br/>
-  An answer here suggested the clever use of `compgen` to show defined shell symbols, which is used in the tests.
-* [Google's style guide](https://google.github.io/styleguide/shell.xml) and this [Shell Scripting - Best Practices](http://fahdshariff.blogspot.com/2013/10/shell-scripting-best-practices.html#BP19) post were both useful in refining the code.
-* The use of `\[` and `\]` translating to `\x01` and `\x02` was harder to hunt down than I expected.
-  * https://wiki.archlinux.org/index.php/Bash/Prompt_customization#Embedding_commands
-  * http://stackoverflow.com/questions/24839271/bash-ps1-line-wrap-issue-with-non-printing-characters-from-an-external-command
-  * http://superuser.com/questions/301353/escape-non-printing-characters-in-a-function-for-a-bash-prompt
-  * http://stackoverflow.com/questions/19092488/custom-bash-prompt-is-overwriting-itself/19501528#19501528
+* [Awesome Bash](https://github.com/awesome-lists/awesome-bash) - Possibly the best landing page for bash that I've found.
+* [BashGuide](http://mywiki.wooledge.org/BashGuide) - Great reference.
+* [how do I list the functions defined in my shell?](http://stackoverflow.com/questions/4471364/how-do-i-list-the-functions-defined-in-my-shell) - An answer here suggested the clever use of `compgen` to show defined shell symbols, which is used in the tests.
+* [Google's style guide](https://google.github.io/styleguide/shell.xml) and this [Shell Scripting - Best Practices](http://fahdshariff.blogspot.com/2013/10/shell-scripting-best-practices.html) post were both useful in refining the code.
+* [Escape non-printing characters in a function for a Bash prompt](http://superuser.com/questions/301353/escape-non-printing-characters-in-a-function-for-a-bash-prompt) - Explains both `\[` and `\]` and translating them to `\x01` and `\x02`.
+* [Obsolete and deprecated syntax](http://wiki.bash-hackers.org/scripting/obsolete) - One of the few places that explains the pitfalls of `set -e` instead of just claiming it's good style.
 
 
 Future Thoughts
@@ -142,5 +126,8 @@ Future Thoughts
 These are thoughts for later.  They may or may not be implemented.
 
 * Maybe hide or abbreviate default branch names like master in git and default in hg to reduce noise in common cases.
-* Put different vcs functions into separate files that can be conditionallly sourced?
-* Don't "expose" configuration variables with default values, just have deafult values...
+* Put different vcs functions into separate files that can be conditionally sourced?
+* Don't export configuration variables with default values, just have default values?
+* Use `\E` instead of `\033`?
+* Use printf instead of echo?
+* Somehow indicate (change pipe?) pure local working-trees?
