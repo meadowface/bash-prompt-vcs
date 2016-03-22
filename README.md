@@ -1,5 +1,7 @@
 Bash Prompt Version Control State
 =================================
+[//]: # (Home: https://github.com/meadowface/bash-prompt-vcs)
+
 Show the state of [git](https://git-scm.com/), [Mercurial (hg)](https://www.mercurial-scm.org/)
 and [Subversion (svn)](https://subversion.apache.org/) working trees as ambient information in
 the bash prompt.
