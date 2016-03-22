@@ -120,6 +120,9 @@ References
 * [Escape non-printing characters in a function for a Bash prompt](http://superuser.com/questions/301353/escape-non-printing-characters-in-a-function-for-a-bash-prompt) - Explains both `\[` and `\]` and translating them to `\x01` and `\x02`.
 * [Obsolete and deprecated syntax](http://wiki.bash-hackers.org/scripting/obsolete) - One of the few places that explains the pitfalls of `set -e` instead of just claiming it's good style.
 
+License
+-------
+Distributed under the terms of the MIT License, see [LICENSE](LICENSE) file for details.
 
 Future Thoughts
 ---------------
