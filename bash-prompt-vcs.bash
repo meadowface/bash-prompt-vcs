@@ -43,6 +43,8 @@ BPVCS_ERR_COLOR="\033[0;31m"            # error defaults to red
 BPVCS_RESET_COLOR="\033[0m"             # reset
 BPVCS_COLORS=1                          # unset to turn off color
 
+declare -g -r BPVCS_VERSION="1.0.0"
+
 bpvcs_bash_prompt() {
     local vcs               # name of VCS
     local -i changed        # count of items that need to be committed

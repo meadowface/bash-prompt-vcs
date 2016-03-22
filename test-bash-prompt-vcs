@@ -437,7 +437,8 @@ test_load_and_symbols() {
     unset BPVCS_UNTRACKED_INDICATOR
     unset bpvcs_bash_prompt
 
-    test_bpvcs_before=$(shell_state)
+    # Must filter out BPVCS_VERSION since we cannot unset a read-only variable.
+    test_bpvcs_before=$(shell_state | grep -v '^BPVCS_VERSION')
 
     source bash-prompt-vcs.bash
 
@@ -462,12 +463,29 @@ test_load_and_symbols() {
     test_bpvcs_expected_symbols+=$'BPVCS_STAGED_INDICATOR\n'
     test_bpvcs_expected_symbols+=$'BPVCS_SVN_COLOR\n'
     test_bpvcs_expected_symbols+=$'BPVCS_UNTRACKED_INDICATOR\n'
+    test_bpvcs_expected_symbols+=$'BPVCS_VERSION\n'
     test_bpvcs_expected_symbols+=$'bpvcs_bash_prompt'
 
     if [[ "${test_bpvcs_new_symbols}" != "${test_bpvcs_expected_symbols}" ]]; then
         test_bpvcs_new_symbols_diff=$(diff <(printf "%s" "${test_bpvcs_expected_symbols}")  <(printf "%s" "${test_bpvcs_new_symbols}") \
                                          | grep '>')
         echo -e "FAILED: Unexpected symbols when loading:\n${test_bpvcs_new_symbols_diff}"
+        exit
+    fi
+}
+
+# Make sure the version being tested matches what we expect and is read-only.
+test_version() {
+    echo Testing version
+
+    local expected_version="1.0.0"
+    if [[ "${BPVCS_VERSION}" != "${expected_version}" ]]; then
+        echo "FAILED: BPVCS_VERSION of '${BPVCS_VERSION}' isn't the expected '${expected_version}'"
+        exit
+    fi
+
+    if [[ ! $(declare -p BPVCS_VERSION) =~ [[:space:]]-r[[:space:]] ]]; then
+        echo "FAILED: BPVCS_VERSION is not read-only."
         exit
     fi
 }
@@ -513,6 +531,7 @@ test_symbol_leakage() {
 
 main() {
     test_load_and_symbols
+    test_version
     test_defaults
     test_outputs
     test_symbol_leakage

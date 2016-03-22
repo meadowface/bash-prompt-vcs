@@ -37,6 +37,7 @@ They can be set in `.bashrc` any time after bash-prompt-vcs.bash is included.
 
 Environment Variable        | Default | Description
 ----------------------------|:-------:|------------
+`BPVCS_VERSION`             | 1.0.0   | Version of the software. (read-only)
 `BPVCS_UNTRACKED_INDICATOR` | … <br/>(U+2026) | Indicates items not in version control.
 `BPVCS_CHANGED_INDICATOR`   | △ <br/>(U+25B3) | Indicates items that need to be committed.
 `BPVCS_STAGED_INDICATOR`    | ● <br/>(U+25CF) | Indicates items that are already staged for commit.
