@@ -64,7 +64,7 @@ test_none() {
 
 # Tests for git working trees.
 run_git() {
-    git "$@" >/dev/null || echo "git run failed"
+    EMAIL="test-bpvcs@example.com" git "$@" >/dev/null || echo "git run failed"
 }
 
 test_git() {
@@ -177,7 +177,7 @@ test_git() {
 
 # Tests for hg working trees.
 run_hg() {
-    hg "$@" >/dev/null || echo "hg run failed"
+    hg --config ui.username=test-bpvcs "$@" >/dev/null || echo "hg run failed"
 }
 
 test_hg() {
