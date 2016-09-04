@@ -516,12 +516,15 @@ test_symbol_leakage() {
 
     test_bpvcs_after=$(shell_state)
 
+    # NOTE: The true at the end of the pipeline is to compensate for the fact
+    #       that by the last grep, we should have zero lines selected which
+    #       would kill the script since set -e is in effect.
     test_bpvcs_leaked_symbols=$(diff <(printf "%s" "${test_bpvcs_loaded}" )  <(printf "%s" "${test_bpvcs_after}") \
                                     | grep '>' \
                                     | grep -v '^> PIPESTATUS$' \
                                     | grep -v '^> OLDPWD$' \
                                     | grep -v '^> BASH_REMATCH$' \
-                                    | grep -v '^> test_bpvcs_')
+                                    | (grep -v '^> test_bpvcs_' || true))
 
     if [[ -n "${test_bpvcs_leaked_symbols}" ]]; then
         echo "FAILED: Unexpected symbols after tests ran: ${test_bpvcs_leaked_symbols}"
