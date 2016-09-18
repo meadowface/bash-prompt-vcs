@@ -425,23 +425,10 @@ shell_state() {
 test_load_and_symbols() {
     echo Testing sourcing and symbols
 
-    # unset everything it might provide in case it's running on the test host.
-    unset BPVCS_AHEAD_INDICATOR
-    unset BPVCS_BEHIND_INDICATOR
-    unset BPVCS_CHANGED_INDICATOR
-    unset BPVCS_CLEAN_INDICATOR
-    unset BPVCS_COLORS
-    unset BPVCS_ERR_COLOR
-    unset BPVCS_GIT_COLOR
-    unset BPVCS_HG_COLOR
-    unset BPVCS_RESET_COLOR
-    unset BPVCS_STAGED_INDICATOR
-    unset BPVCS_SVN_COLOR
-    unset BPVCS_UNTRACKED_INDICATOR
-    unset bpvcs_bash_prompt
-
-    # Must filter out BPVCS_VERSION since we cannot unset a read-only variable.
-    test_bpvcs_before=$(shell_state | grep -v '^BPVCS_VERSION')
+    # NOTE: Since this test script is run as a separate script, we don't
+    # inherit any bash-prompt-vcs symbols even if it's being used on the test
+    # host.
+    test_bpvcs_before=$(shell_state)
 
     source bash-prompt-vcs.bash
 
