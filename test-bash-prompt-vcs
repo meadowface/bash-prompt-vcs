@@ -416,10 +416,15 @@ test_outputs() {
     fi
 }
 
-# Output a list of shell symbols - variables and functions in a stable order.
+# Output a list of shell symbols (variables and functions) in a stable order.
+# Exclude common "working variables" and this script's specific symbols.
 shell_state() {
-    compgen -A variable | sort
-    compgen -A function | sort
+    (compgen -A variable ; compgen -A function) \
+        | grep -v '^PIPESTATUS$' \
+        | grep -v '^OLDPWD$' \
+        | grep -v '^BASH_REMATCH$' \
+        | grep -v '^test_bpvcs_' \
+        | sort
 }
 
 test_load_and_symbols() {
@@ -434,32 +439,35 @@ test_load_and_symbols() {
 
     test_bpvcs_loaded=$(shell_state)
 
-    test_bpvcs_new_symbols=$(diff <(printf "%s" "${test_bpvcs_before}" )  <(printf "%s" "${test_bpvcs_loaded}") \
-                                | grep '>' \
-                                | grep -v '^> PIPESTATUS$' \
-                                | grep -v '^> test_bpvcs_' \
-                                | cut -c3-)
+    test_bpvcs_new_symbols=($(comm -31 <(printf "%s" "${test_bpvcs_before}") \
+                                       <(printf "%s" "${test_bpvcs_loaded}")))
 
-    test_bpvcs_expected_symbols=""
-    test_bpvcs_expected_symbols+=$'BPVCS_AHEAD_INDICATOR\n'
-    test_bpvcs_expected_symbols+=$'BPVCS_BEHIND_INDICATOR\n'
-    test_bpvcs_expected_symbols+=$'BPVCS_CHANGED_INDICATOR\n'
-    test_bpvcs_expected_symbols+=$'BPVCS_CLEAN_INDICATOR\n'
-    test_bpvcs_expected_symbols+=$'BPVCS_COLORS\n'
-    test_bpvcs_expected_symbols+=$'BPVCS_ERR_COLOR\n'
-    test_bpvcs_expected_symbols+=$'BPVCS_GIT_COLOR\n'
-    test_bpvcs_expected_symbols+=$'BPVCS_HG_COLOR\n'
-    test_bpvcs_expected_symbols+=$'BPVCS_RESET_COLOR\n'
-    test_bpvcs_expected_symbols+=$'BPVCS_STAGED_INDICATOR\n'
-    test_bpvcs_expected_symbols+=$'BPVCS_SVN_COLOR\n'
-    test_bpvcs_expected_symbols+=$'BPVCS_UNTRACKED_INDICATOR\n'
-    test_bpvcs_expected_symbols+=$'BPVCS_VERSION\n'
-    test_bpvcs_expected_symbols+=$'bpvcs_bash_prompt'
+    local -i unexpected=0
+    local new
+    for new in "${test_bpvcs_new_symbols[@]}"; do
+        case "${new}" in
+              BPVCS_AHEAD_INDICATOR \
+            | bpvcs_bash_prompt \
+            | BPVCS_BEHIND_INDICATOR \
+            | BPVCS_CHANGED_INDICATOR \
+            | BPVCS_CLEAN_INDICATOR \
+            | BPVCS_COLORS \
+            | BPVCS_ERR_COLOR \
+            | BPVCS_GIT_COLOR \
+            | BPVCS_HG_COLOR \
+            | BPVCS_RESET_COLOR \
+            | BPVCS_STAGED_INDICATOR \
+            | BPVCS_SVN_COLOR \
+            | BPVCS_UNTRACKED_INDICATOR \
+            | BPVCS_VERSION) ;; # these are all expected, ignore them.
+            *) printf "UNEXPECTED: ${new}\n"
+               ((++unexpected))
+               ;;
+        esac
+    done
 
-    if [[ "${test_bpvcs_new_symbols}" != "${test_bpvcs_expected_symbols}" ]]; then
-        test_bpvcs_new_symbols_diff=$(diff <(printf "%s" "${test_bpvcs_expected_symbols}")  <(printf "%s" "${test_bpvcs_new_symbols}") \
-                                         | grep '>')
-        echo -e "FAILED: Unexpected symbols when loading:\n${test_bpvcs_new_symbols_diff}"
+    if [[ ${unexpected} -ne 0 ]]; then
+        echo -e "FAILED: ${unexpected} unexpected symbols when loading"
         exit
     fi
 }
@@ -506,18 +514,11 @@ test_symbol_leakage() {
 
     test_bpvcs_after=$(shell_state)
 
-    # NOTE: The true at the end of the pipeline is to compensate for the fact
-    #       that by the last grep, we should have zero lines selected which
-    #       would kill the script since set -e is in effect.
-    test_bpvcs_leaked_symbols=$(diff <(printf "%s" "${test_bpvcs_loaded}" )  <(printf "%s" "${test_bpvcs_after}") \
-                                    | grep '>' \
-                                    | grep -v '^> PIPESTATUS$' \
-                                    | grep -v '^> OLDPWD$' \
-                                    | grep -v '^> BASH_REMATCH$' \
-                                    | (grep -v '^> test_bpvcs_' || true))
+    test_bpvcs_leaked_symbols=$(comm -31 <(printf "%s" "${test_bpvcs_loaded}") \
+                                         <(printf "%s" "${test_bpvcs_after}"))
 
     if [[ -n "${test_bpvcs_leaked_symbols}" ]]; then
-        echo "FAILED: Unexpected symbols after tests ran: ${test_bpvcs_leaked_symbols}"
+        printf "FAILED: Symbols leaked:\n%s\n" "${test_bpvcs_leaked_symbols}"
         exit
     fi
 }
