@@ -77,6 +77,15 @@ check_run() {
     fi
 }
 
+# Some handy constants
+readonly FIRST_FILENAME="first.txt"
+readonly SECOND_FILENAME="second.txt"
+readonly ALT_SECOND_FILENAME="2nd.txt"
+readonly THIRD_FILENAME="third.txt"
+readonly MISSING_FILENAME="missing.txt"
+readonly UNICODE_FILENAME=$'\U0001F4A9'
+readonly SPACES_FILENAME="filename with spaces.txt"
+
 # Tests for git working trees.
 run_git() {
     check_run git -c user.name="Test BPVCS" \
@@ -92,8 +101,8 @@ test_git() {
     run_git init
     test_prompt "git init" "(Initial commit on master|✔)"
 
-    echo "First post!" >first.txt
-    run_git add first.txt
+    echo "First post!" >"${FIRST_FILENAME}"
+    run_git add "${FIRST_FILENAME}"
     test_prompt "git add" "(Initial commit on master|●1)"
 
     run_git commit -m first
@@ -102,42 +111,42 @@ test_git() {
     echo "No tracked" >"$gitdir/notme"
     test_prompt "git untracked" "(master|…1)"
 
-    echo "Changed!" >first.txt
+    echo "Changed!" >"${FIRST_FILENAME}"
     test_prompt "git change" "(master|…1△1)"
 
-    echo "toooooo" >second.txt
+    echo "toooooo" >"${SECOND_FILENAME}"
     test_prompt "git various" "(master|…2△1)"
 
-    run_git add second.txt
+    run_git add "${SECOND_FILENAME}"
     test_prompt "git staged" "(master|…1△1●1)"
 
     run_git commit -m "moar files"
     test_prompt "git commit part" "(master|…1△1)"
 
-    echo "spacey" >"spaces in filename.txt"
+    echo "spacey" >"${SPACES_FILENAME}"
     test_prompt "git spaces" "(master|…2△1)"
-    rm "spaces in filename.txt"
+    rm "${SPACES_FILENAME}"
 
-    echo poo >$'\U0001F4A9'
+    echo poo >"${UNICODE_FILENAME}"
     test_prompt "git unicode" "(master|…2△1)"
-    rm $'\U0001F4A9'
+    rm "${UNICODE_FILENAME}"
 
     # git tries to track removes so a non-git remove still looks like
-    # a delete but the missing.txt is now an untracked file.
-    mv second.txt missing.txt
+    # a delete but the "${MISSING_FILENAME}" is now an untracked file.
+    mv "${SECOND_FILENAME}" "${MISSING_FILENAME}"
     test_prompt "git missing" "(master|…2△1●1)"
-    mv missing.txt second.txt
+    mv "${MISSING_FILENAME}" "${SECOND_FILENAME}"
 
-    run_git mv second.txt 2nd.txt
+    run_git mv "${SECOND_FILENAME}" "${ALT_SECOND_FILENAME}"
     test_prompt "git rename" "(master|…1△1●1)"
 
     run_git commit -a -m "save it all"
     test_prompt "git almost clean" "(master|…1)"
 
-    echo "short lived third" >third.txt
-    run_git add third.txt
+    echo "short lived third" >"${THIRD_FILENAME}"
+    run_git add "${THIRD_FILENAME}"
     run_git commit -m "add third"
-    run_git rm third.txt
+    run_git rm "${THIRD_FILENAME}"
     test_prompt "git rm" "(master|…1●1)"
     run_git commit -m "we did not want third"
 
@@ -177,12 +186,12 @@ test_git() {
     test_prompt "git clone clean" "(master|✔)"
 
     # Put clone ahead of remote (original)
-    echo "oneoneone" >>first.txt
+    echo "oneoneone" >>"${FIRST_FILENAME}"
     run_git commit -a -m "one eleven"
     test_prompt "git clone ahead" "(master⇡|✔)"
 
     cd "${gitdir}"
-    echo "too" >>2nd.txt
+    echo "too" >>"${ALT_SECOND_FILENAME}"
     run_git commit -a -m "also"
 
     cd "${gitclonedir}"
@@ -205,8 +214,8 @@ test_hg() {
     run_hg init
     test_prompt "hg init" "(default|✔)"
 
-    echo "First post!" >first.txt
-    run_hg add first.txt
+    echo "First post!" >"${FIRST_FILENAME}"
+    run_hg add "${FIRST_FILENAME}"
     test_prompt "hg add" "(default|△1)"
 
     run_hg commit -m first
@@ -215,42 +224,42 @@ test_hg() {
     echo "No tracked" >"${hgdir}/notme"
     test_prompt "hg untracked" "(default|…1)"
 
-    echo "Changed!" >first.txt
+    echo "Changed!" >"${FIRST_FILENAME}"
     test_prompt "hg change" "(default|…1△1)"
 
-    echo "toooooo" >second.txt
+    echo "toooooo" >"${SECOND_FILENAME}"
     test_prompt "hg various" "(default|…2△1)"
 
-    run_hg add second.txt
+    run_hg add "${SECOND_FILENAME}"
     test_prompt "hg add second" "(default|…1△2)"
 
     run_hg commit -m "moar files"
     test_prompt "hg commit" "(default|…1)"
 
-    echo "spacey" >"spaces in filename.txt"
+    echo "spacey" >"${SPACES_FILENAME}"
     test_prompt "hg spaces" "(default|…2)"
-    rm "spaces in filename.txt"
+    rm "${SPACES_FILENAME}"
 
-    echo poo >$'\U0001F4A9'
+    echo poo >"${UNICODE_FILENAME}"
     test_prompt "hg unicode" "(default|…2)"
-    rm $'\U0001F4A9'
+    rm "${UNICODE_FILENAME}"
 
     # hg tracks deleted but not removed files, but does not
     # auto-stage them or commit them.  So treat it as an untracked.
-    mv second.txt missing.txt
+    mv "${SECOND_FILENAME}" "${MISSING_FILENAME}"
     test_prompt "hg missing" "(default|…3)"
-    mv missing.txt second.txt
+    mv "${MISSING_FILENAME}" "${SECOND_FILENAME}"
 
-    run_hg rename second.txt 2nd.txt
+    run_hg rename "${SECOND_FILENAME}" "${ALT_SECOND_FILENAME}"
     test_prompt "hg rename" "(default|…1△1)"
 
     run_hg commit -m "save it all"
     test_prompt "hg almost clean" "(default|…1)"
 
-    echo "short lived third" >third.txt
-    run_hg add third.txt
+    echo "short lived third" >"${THIRD_FILENAME}"
+    run_hg add "${THIRD_FILENAME}"
     run_hg commit -m "add third"
-    run_hg rm third.txt
+    run_hg rm "${THIRD_FILENAME}"
     test_prompt "hg rm" "(default|…1△1)"
     run_hg commit -m "we did not want third"
 
@@ -307,8 +316,8 @@ test_svn() {
     cd "trunk"
     test_prompt "svn init" "(✔)"
 
-    echo "First post!" >first.txt
-    run_svn add first.txt
+    echo "First post!" >"${FIRST_FILENAME}"
+    run_svn add "${FIRST_FILENAME}"
     test_prompt "svn add" "(△1)"
 
     run_svn commit -m first
@@ -317,43 +326,43 @@ test_svn() {
     echo "No tracked" >"${svndir}/trunk/notme"
     test_prompt "svn untracked" "(…1)"
 
-    echo "Changed!" >first.txt
+    echo "Changed!" >"${FIRST_FILENAME}"
     test_prompt "svn change" "(…1△1)"
 
-    echo "toooooo" >second.txt
+    echo "toooooo" >"${SECOND_FILENAME}"
     test_prompt "svn various" "(…2△1)"
 
-    run_svn add second.txt
+    run_svn add "${SECOND_FILENAME}"
     test_prompt "svn add second" "(…1△2)"
 
     run_svn commit -m "moar files"
     test_prompt "svn commit" "(…1)"
 
-    echo "spacey" >"spaces in filename.txt"
+    echo "spacey" >"${SPACES_FILENAME}"
     test_prompt "svn spaces" "(…2)"
-    rm "spaces in filename.txt"
+    rm "${SPACES_FILENAME}"
 
-    echo poo >$'\U0001F4A9'
+    echo poo >"${UNICODE_FILENAME}"
     test_prompt "svn unicode" "(…2)"
-    rm $'\U0001F4A9'
+    rm "${UNICODE_FILENAME}"
 
     # Like hg, svn tracks deleted but not removed files, but does not
     # auto-stage them or commit them.  So treat it as an untracked.
-    mv second.txt missing.txt
+    mv "${SECOND_FILENAME}" "${MISSING_FILENAME}"
     test_prompt "svn missing" "(…3)"
-    mv missing.txt second.txt
+    mv "${MISSING_FILENAME}" "${SECOND_FILENAME}"
 
     # A rename counts as two changes, an add and a delete
-    run_svn rename second.txt 2nd.txt
+    run_svn rename "${SECOND_FILENAME}" "${ALT_SECOND_FILENAME}"
     test_prompt "svn rename" "(…1△2)"
 
     run_svn commit -m "save it all"
     test_prompt "svn almost clean" "(…1)"
 
-    echo "short lived third" >third.txt
-    run_svn add third.txt
+    echo "short lived third" >"${THIRD_FILENAME}"
+    run_svn add "${THIRD_FILENAME}"
     run_svn commit -m "add third"
-    run_svn rm third.txt
+    run_svn rm "${THIRD_FILENAME}"
     test_prompt "svn rm" "(…1△1)"
     run_svn commit -m "we did not want third"
 
