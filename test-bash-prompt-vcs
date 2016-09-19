@@ -64,10 +64,8 @@ test_none() {
 
 # Tests for git working trees.
 run_git() {
-    GIT_AUTHOR_NAME="Test BPVCS" \
-    GIT_COMMITTER_NAME="Test BPVCS" \
-    EMAIL="test-bpvcs@example.com" \
-    git "$@" >/dev/null || echo "git run failed"
+    git -c user.name="Test BPVCS" -c user.email="test-bpvcs@example.com" \
+        "$@" >/dev/null || echo "git run failed"
 }
 
 test_git() {
