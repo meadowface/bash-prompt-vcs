@@ -95,7 +95,7 @@ run_git() {
 
 test_git() {
     prefix="${git_prefix}"
-    local gitdir=$(mktemp -d --tmpdir=${tmpdir} test_git.XXX)
+    local gitdir=$(mktemp -d --tmpdir="${tmpdir}" test_git.XXX)
     cd "${gitdir}"
 
     run_git init
@@ -108,7 +108,7 @@ test_git() {
     run_git commit -m first
     test_prompt "git added" "(master|✔)"
 
-    echo "No tracked" >"$gitdir/notme"
+    echo "No tracked" >"${gitdir}/notme"
     test_prompt "git untracked" "(master|…1)"
 
     echo "Changed!" >"${FIRST_FILENAME}"
@@ -208,7 +208,7 @@ run_hg() {
 
 test_hg() {
     prefix="${hg_prefix}"
-    local hgdir=$(mktemp -d --tmpdir=$tmpdir test_hg.XXX)
+    local hgdir=$(mktemp -d --tmpdir="${tmpdir}" test_hg.XXX)
     cd "${hgdir}"
 
     run_hg init
@@ -308,7 +308,7 @@ run_svn() {
 
 test_svn() {
     prefix="${svn_prefix}"
-    local svndir=$(mktemp -d --tmpdir=${tmpdir} test_svn.XXX)
+    local svndir=$(mktemp -d --tmpdir="${tmpdir}" test_svn.XXX)
     cd "${svndir}"
     run_svnadmin create SVNROOT
 
