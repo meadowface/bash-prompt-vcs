@@ -62,10 +62,26 @@ test_none() {
     suffix="${save_suffix}"
 }
 
+# Run the command represented by the args, redirecting output into a variable.
+# If the command succeeds, just return 0.
+# If the command fails, print its returncode and output and return 1.
+check_run() {
+    local output
+    local returncode=0
+    output=$("$@" 2>&1) || returncode=$?
+
+    if [[ ${returncode} -ne 0 ]]; then
+        printf "'%s' failed.\nreturncode: %d\noutput: [%s]\n" \
+               "$*" ${returncode} "${output}"
+        return 1
+    fi
+}
+
 # Tests for git working trees.
 run_git() {
-    git -c user.name="Test BPVCS" -c user.email="test-bpvcs@example.com" \
-        "$@" >/dev/null || echo "git run failed"
+    check_run git -c user.name="Test BPVCS" \
+                  -c user.email="test-bpvcs@example.com" \
+                  "$@"
 }
 
 test_git() {
@@ -178,7 +194,7 @@ test_git() {
 
 # Tests for hg working trees.
 run_hg() {
-    hg --config ui.username=test-bpvcs "$@" >/dev/null || echo "hg run failed"
+    check_run hg --config ui.username=test-bpvcs "$@"
 }
 
 test_hg() {
@@ -274,11 +290,11 @@ test_hg() {
 
 # Tests for svn sandboxes.
 run_svnadmin() {
-    svnadmin "$@" >/dev/null || echo "svnadmin run failed"
+    check_run svnadmin "$@"
 }
 
 run_svn() {
-    svn "$@" >/dev/null || echo "svn run failed"
+    check_run svn "$@"
 }
 
 test_svn() {
