@@ -197,14 +197,14 @@ readonly UNICODE_FILENAME=$'\U0001F4A9'
 readonly SPACES_FILENAME="filename with spaces.txt"
 
 # Tests for non-working tree directories.
-test_none() {
+not_sandbox() {
     # Need to save/restore suffix so we clobber it for later tests.
     local save_suffix="${suffix}"
     prefix=""
     suffix=""
 
     cd "${tmpdir}"
-    check "none" expect_prompt ""
+    check "not a sandbox" expect_prompt ""
 
     suffix="${save_suffix}"
 }
@@ -216,7 +216,7 @@ run_git() {
                   "$@"
 }
 
-test_git() {
+git_sandbox() {
     prefix="${git_prefix}"
     local gitdir
     gitdir=$(mktemp -d --tmpdir="${tmpdir}" test_git.XXX)
@@ -331,7 +331,7 @@ run_hg() {
     check_run hg --config ui.username=test-bpvcs "$@"
 }
 
-test_hg() {
+hg_sandbox() {
     prefix="${hg_prefix}"
     local hgdir
     hgdir=$(mktemp -d --tmpdir="${tmpdir}" test_hg.XXX)
@@ -432,7 +432,7 @@ run_svn() {
     check_run svn "$@"
 }
 
-test_svn() {
+svn_sandbox() {
     prefix="${svn_prefix}"
     local svndir
     svndir=$(mktemp -d --tmpdir="${tmpdir}" test_svn.XXX)
@@ -542,14 +542,14 @@ test_svn() {
     check "svn back to good" expect_prompt "(✔)"
 }
 
-test_all() {
-    check "Empty sandbox" test_none
-    check "git" test_git
-    check "hg" test_hg
-    check "svn" test_svn
+all_sandboxes() {
+    check "Not sandbox" not_sandbox
+    check "git" git_sandbox
+    check "hg" hg_sandbox
+    check "svn" svn_sandbox
 }
 
-test_outputs() {
+prompt_output() {
     # Make a home to work in.
     local tmpdir
     tmpdir=$(mktemp -d --tmpdir bpvcs-test-XXX)
@@ -569,7 +569,7 @@ test_outputs() {
     local svn_prefix="${NP_ON}${ESC}[0;35m${NP_OFF} "
     local err_prefix="${NP_ON}${ESC}[0;31m${NP_OFF} "
 
-    check "chromatic" test_all
+    check "chromatic" all_sandboxes
 
     # Run all tests again, this time with colors off and making sure that the
     # non-color prefixes are used.
@@ -580,7 +580,7 @@ test_outputs() {
     err_prefix=" ERR:"
     unset BPVCS_COLORS
 
-    check "monochrome" test_all
+    check "monochrome" all_sandboxes
 
     # Clean up the temp dir.
     if [[ -n "${tmpdir}" ]]; then
@@ -599,7 +599,7 @@ shell_state() {
         | sort
 }
 
-test_load_and_symbols() {
+load_and_symbols() {
     # NOTE: Since this test script is run as a separate script, we don't
     # inherit any bash-prompt-vcs symbols even if it's being used on the test
     # host.
@@ -643,7 +643,7 @@ test_load_and_symbols() {
 }
 
 # Make sure the version being tested matches what we expect and is read-only.
-test_version() {
+version() {
     local expected_version="1.0.0"
     if [[ "${BPVCS_VERSION}" != "${expected_version}" ]]; then
         failmsg "BPVCS_VERSION of '${BPVCS_VERSION}' isn't the expected '${expected_version}'"
@@ -657,7 +657,7 @@ test_version() {
 }
 
 # Test that the defaults are as expected.
-test_defaults() {
+defaults() {
     # Confirm these rather than using the variables up above so the tests remain
     # somewhat readable and useful for looking at to see what the code will output.
     if [[ "${BPVCS_UNTRACKED_INDICATOR}" != "…" ]]; then failmsg "Wrong default untracked indicator"; return 1; fi
@@ -675,7 +675,7 @@ test_defaults() {
     if [[ -z "${BPVCS_COLORS:-}" ]];      then failmsg "No default color!";        return 1; fi
 }
 
-test_symbol_leakage() {
+symbol_leakage() {
     test_bpvcs_after=$(shell_state)
 
     test_bpvcs_leaked_symbols=$(comm -31 <(printf "%s" "${test_bpvcs_loaded}") \
@@ -687,11 +687,11 @@ test_symbol_leakage() {
 }
 
 main() {
-    check "Sourcing and symbols" test_load_and_symbols
-    check "Version" test_version
-    check "Defaults" test_defaults
-    check "Output" test_outputs
-    check "Symbol Leakage" test_symbol_leakage
+    check "Sourcing and symbols" load_and_symbols
+    check "Version" version
+    check "Defaults" defaults
+    check "Prompt Output" prompt_output
+    check "Symbol Leakage" symbol_leakage
     echo "ALL tests: OK"
 }
 
