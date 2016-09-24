@@ -26,53 +26,159 @@
 set -e
 set -u
 
-# Test that the prompt outputs what is expected, exiting if not.
-# Run once to gather output to test_prompt and then again in the local
-# symbol space so we can test_prompt for symbol leakage after all tests have been
-# run.
-# Output the test description followed by OK. if the prompt output matches
-# the expected output or FAILED: and details if not.
-# Will make sure the prefix/suffix variables are part of the output.
-test_prompt() {
-    local -r description="$1"
-    local -r expected="$2"
-    printf "${description}: "
-    local prompt=$(bpvcs_bash_prompt)
-    bpvcs_bash_prompt >/dev/null
-    if [[ "${prompt}" = "${prefix:-}${expected}${suffix:-}" ]]; then
-        printf "OK.\n"
-    else
-        printf "FAILED.\n  Expected: %q\n       got: %q\n" "${prefix:-}${expected}${suffix:-}" "${prompt}"
-        printf "Working trees in ${tmpdir}\n"
-        exit
-    fi
+# A set of functions to act as scaffolding for testing the prompt code.
+# Tests will run until the first failure or error, at which point the
+# error handler is called, the failure message is reported, and the process
+# is ended.
+#
+# To use, write a test function f() which returns 0 on success and 1 on
+# failure.  On failure, it may also set a message using the failmsg()
+# function.
+#
+# Then call that function with a short description via check() like:
+#     check "Test the f-ing function" f arg1 arg2
+#
+# Test functions can call check() again inside of them for grouping
+# purposes.  check() will indent the output of sub-calls.
+#
+# If you need to call out to another program, use the check_run() function
+# as it will handle grabbing the output for the failmsg and checking for
+# failure.
 
+# Open a file descriptor that will spew to stderr but that is independent so
+# we can direct test information to it in the ERR trap instead of stderr which
+# might pollute the captured output of some code under test, especially in
+# captured subprocesses.
+exec 3>&2
+
+# To be called from an ERR trap.  This will detect whether we're within a
+# check() call and report the failmsg.  If there is no failmsg, then assume
+# this is an unexpected exit during a test and report it differently to help
+# suss out errors in the test code v. actual failures. If we're NOT within a
+# check() call, then report it as a totally unexpected exit.
+check_handler() {
+    cmd="${BASH_COMMAND}"
+    if [[ "${_pending_check_funcs}" ]]; then
+        printf "FAILED\n%s\n" "${_failmsg:-}"
+        if [[ -n ${_failmsg:-} ]]; then
+            printf "Aborting due to check failure: %s\n" \
+                   "${_pending_check_funcs}"
+        else
+            printf "Aborting due to unexpected exit of '%s' during check %s.\n" \
+                   "${cmd}" "${_pending_check_funcs}"
+        fi
+    else
+        printf "Unexpected exit from '%s' outside of any check.\n" "${cmd}"
+    fi
 }
 
-# Tests for non-working tree directories.
-test_none() {
-    # Need to save/restore suffix so we clobber it for later tests.
-    local save_suffix="${suffix}"
-    prefix=""
-    suffix=""
+# Set up an ERR trap which will use the above to report detailed failure
+# errors.  Make sure output from this is directed to FD 3 and not stderr.
+err_handler() {
+    check_handler >&3
 
-    cd "${tmpdir}"
-    test_prompt "none" ""
+    # set -e doesn't descend into subshells, but trap ERR does
+    # (with set -o errtrace), so make sure to exit after an error.
+    exit
+}
+trap err_handler ERR
+set -o errtrace
 
-    suffix="${save_suffix}"
+# _failmsg is cleared every time check() is called and is appended to every
+# time failmsg() is called.  So it can be used to build up a single message in
+# multiple calls.
+failmsg() {
+    local moremsg
+    printf -v moremsg "$@"
+    _failmsg="${_failmsg:-}${moremsg}"
+}
+
+# The workhorse function of the test scaffolding.  Calls the function
+# passed in after reporting the passed-in description.  On success, will
+# then output 'OK' or 'ALL...OK' when there are nested groups of check calls.
+#
+# Maintains the global variables:
+#     _pending_check_funcs  - The stack of all check functions pending.  Used
+#                             in check_handler() to see if we're in a check.
+#     _pending_check_result - Flag denoting whether we are waiting for a
+#                             check to pass/fail. Used to format output nicely.
+#     _failmsg              - Cleared before calling the function and set
+#                             inside the test functions by calling failmsg().
+check() {
+    local -r description=$1
+    shift
+    local -r func=$1
+
+    # If we're here and still pending a check result, it means that a test
+    # function has called check() inside of it, so output a newline and indent
+    # the new check.  This allows grouping of checks inside functions and a
+    # nice hierarchal output.
+    if [[ "${_pending_check_result:-}" ]]; then
+        printf "\n"
+    fi
+
+    # Report the function name we're about to call at the appropriate
+    # indentation.
+    # Indentation level is the number of check funcs we have in the stack
+    # already, which we can get by counting colons in $_pending_check_funcs.
+    local colons="${_pending_check_funcs:-}"
+    colons="${colons//[^:]}"                 # remove everything but colons
+    local -r indent=$((${#colons} * 2))
+    printf "%*s%s: " ${indent} "" "${description}"
+
+    # Push the function name we're about to call, preceded by a '/'
+    # and set the global state for the call.
+    _pending_check_funcs="${_pending_check_funcs:-}${_pending_check_funcs:+:}${func}"
+    _pending_check_result="yes"
+    unset _failmsg
+
+    "$@"
+
+    # Report the results, formatting group results differently.
+    if [[ "${_pending_check_result:-}" ]]; then
+        printf "OK\n"
+    else
+        printf "%*sALL %s: OK\n" ${indent} "" "${description}"
+    fi
+
+    # Pop the function name just called off the stack and clear the globals.
+    unset _failmsg
+    unset _pending_check_result
+    _pending_check_funcs="${_pending_check_funcs%:*}"
 }
 
 # Run the command represented by the args, redirecting output into a variable.
 # If the command succeeds, just return 0.
-# If the command fails, print its returncode and output and return 1.
+# If the command fails, set a fail message with its returncode and
+# output, then return 1 to trigger the error trap.
 check_run() {
     local output
     local returncode=0
     output=$("$@" 2>&1) || returncode=$?
 
     if [[ ${returncode} -ne 0 ]]; then
-        printf "'%s' failed.\nreturncode: %d\noutput: [%s]\n" \
-               "$*" ${returncode} "${output}"
+        failmsg "\nRUN FAIL:\n'%s' failed.\nreturncode: %d\noutput: [%s]\n" \
+                "$*" ${returncode} "${output}"
+        return 1
+    fi
+}
+
+# Test that the prompt outputs what is expected, failing if not.
+# Will make sure the prefix/suffix variables are part of the output.
+expect_prompt() {
+    local -r expected="$1"
+    local prompt
+
+    # Run once to gather output to compare and then again in the local symbol
+    # space so we can check for symbol leakage after all tests have been run.
+    prompt=$(bpvcs_bash_prompt)
+    bpvcs_bash_prompt >/dev/null
+
+    if [[ "${prompt}" = "${prefix:-}${expected}${suffix:-}" ]]; then
+        return 0
+    else
+        failmsg "Expected: %q\n     got: %q\n" "${prefix:-}${expected}${suffix:-}" "${prompt}"
+        failmsg "Working trees in ${tmpdir}\n"
         return 1
     fi
 }
@@ -85,6 +191,19 @@ readonly THIRD_FILENAME="third.txt"
 readonly MISSING_FILENAME="missing.txt"
 readonly UNICODE_FILENAME=$'\U0001F4A9'
 readonly SPACES_FILENAME="filename with spaces.txt"
+
+# Tests for non-working tree directories.
+test_none() {
+    # Need to save/restore suffix so we clobber it for later tests.
+    local save_suffix="${suffix}"
+    prefix=""
+    suffix=""
+
+    cd "${tmpdir}"
+    check "none" expect_prompt ""
+
+    suffix="${save_suffix}"
+}
 
 # Tests for git working trees.
 run_git() {
@@ -99,83 +218,83 @@ test_git() {
     cd "${gitdir}"
 
     run_git init
-    test_prompt "git init" "(Initial commit on master|✔)"
+    check "git init" expect_prompt "(Initial commit on master|✔)"
 
     echo "First post!" >"${FIRST_FILENAME}"
     run_git add "${FIRST_FILENAME}"
-    test_prompt "git add" "(Initial commit on master|●1)"
+    check "git add" expect_prompt "(Initial commit on master|●1)"
 
     run_git commit -m first
-    test_prompt "git added" "(master|✔)"
+    check "git added" expect_prompt "(master|✔)"
 
     echo "No tracked" >"${gitdir}/notme"
-    test_prompt "git untracked" "(master|…1)"
+    check "git untracked" expect_prompt "(master|…1)"
 
     echo "Changed!" >"${FIRST_FILENAME}"
-    test_prompt "git change" "(master|…1△1)"
+    check "git change" expect_prompt "(master|…1△1)"
 
     echo "toooooo" >"${SECOND_FILENAME}"
-    test_prompt "git various" "(master|…2△1)"
+    check "git various" expect_prompt "(master|…2△1)"
 
     run_git add "${SECOND_FILENAME}"
-    test_prompt "git staged" "(master|…1△1●1)"
+    check "git staged" expect_prompt "(master|…1△1●1)"
 
     run_git commit -m "moar files"
-    test_prompt "git commit part" "(master|…1△1)"
+    check "git commit part" expect_prompt "(master|…1△1)"
 
     echo "spacey" >"${SPACES_FILENAME}"
-    test_prompt "git spaces" "(master|…2△1)"
+    check "git spaces" expect_prompt "(master|…2△1)"
     rm "${SPACES_FILENAME}"
 
     echo poo >"${UNICODE_FILENAME}"
-    test_prompt "git unicode" "(master|…2△1)"
+    check "git unicode" expect_prompt "(master|…2△1)"
     rm "${UNICODE_FILENAME}"
 
     # git tries to track removes so a non-git remove still looks like
     # a delete but the "${MISSING_FILENAME}" is now an untracked file.
     mv "${SECOND_FILENAME}" "${MISSING_FILENAME}"
-    test_prompt "git missing" "(master|…2△1●1)"
+    check "git missing" expect_prompt "(master|…2△1●1)"
     mv "${MISSING_FILENAME}" "${SECOND_FILENAME}"
 
     run_git mv "${SECOND_FILENAME}" "${ALT_SECOND_FILENAME}"
-    test_prompt "git rename" "(master|…1△1●1)"
+    check "git rename" expect_prompt "(master|…1△1●1)"
 
     run_git commit -a -m "save it all"
-    test_prompt "git almost clean" "(master|…1)"
+    check "git almost clean" expect_prompt "(master|…1)"
 
     echo "short lived third" >"${THIRD_FILENAME}"
     run_git add "${THIRD_FILENAME}"
     run_git commit -m "add third"
     run_git rm "${THIRD_FILENAME}"
-    test_prompt "git rm" "(master|…1●1)"
+    check "git rm" expect_prompt "(master|…1●1)"
     run_git commit -m "we did not want third"
 
     echo "notme" >"${gitdir}/.gitignore"
-    test_prompt "git ignore" "(master|…1)"
+    check "git ignore" expect_prompt "(master|…1)"
 
     run_git add ".gitignore"
     run_git commit ".gitignore" -m "nothing to see here"
-    test_prompt "git faux clean" "(master|✔)"
+    check "git faux clean" expect_prompt "(master|✔)"
 
     rm "${gitdir}/notme"
-    test_prompt "git clean" "(master|✔)"
+    check "git clean" expect_prompt "(master|✔)"
 
     run_git checkout -b riskychange
-    test_prompt "git branch" "(riskychange|✔)"
+    check "git branch" expect_prompt "(riskychange|✔)"
 
     run_git checkout master
-    test_prompt "git master" "(master|✔)"
+    check "git master" expect_prompt "(master|✔)"
 
     # Replace git with a that outputs nonsense to test parsing errors.
     git() {
         echo "Nonesense"
     }
     prefix="${err_prefix}"
-    test_prompt "git bad status" "(unexpected git status output)"
+    check "git bad status" expect_prompt "(unexpected git status output)"
 
     prefix="${git_prefix}"
     unset git
-    test_prompt "git back to good" "(master|✔)"
+    check "git back to good" expect_prompt "(master|✔)"
 
     # Select a home for the clone but remove it as git clone will create it.
     local gitclonedir=$(mktemp -d --tmpdir=${tmpdir} test_gitclone.XXX)
@@ -183,21 +302,21 @@ test_git() {
     cd "${tmpdir}"
     run_git clone "${gitdir}" "${gitclonedir}"
     cd "${gitclonedir}"
-    test_prompt "git clone clean" "(master|✔)"
+    check "git clone clean" expect_prompt "(master|✔)"
 
     # Put clone ahead of remote (original)
     echo "oneoneone" >>"${FIRST_FILENAME}"
     run_git commit -a -m "one eleven"
-    test_prompt "git clone ahead" "(master⇡|✔)"
+    check "git clone ahead" expect_prompt "(master⇡|✔)"
 
     cd "${gitdir}"
     echo "too" >>"${ALT_SECOND_FILENAME}"
     run_git commit -a -m "also"
 
     cd "${gitclonedir}"
-    test_prompt "git clone ahead/behind prefetch" "(master⇡|✔)"
+    check "git clone ahead/behind prefetch" expect_prompt "(master⇡|✔)"
     run_git fetch
-    test_prompt "git clone ahead/behind postfetch" "(master⇡⇣|✔)"
+    check "git clone ahead/behind postfetch" expect_prompt "(master⇡⇣|✔)"
 }
 
 
@@ -212,88 +331,88 @@ test_hg() {
     cd "${hgdir}"
 
     run_hg init
-    test_prompt "hg init" "(default|✔)"
+    check "hg init" expect_prompt "(default|✔)"
 
     echo "First post!" >"${FIRST_FILENAME}"
     run_hg add "${FIRST_FILENAME}"
-    test_prompt "hg add" "(default|△1)"
+    check "hg add" expect_prompt "(default|△1)"
 
     run_hg commit -m first
-    test_prompt "hg added" "(default|✔)"
+    check "hg added" expect_prompt "(default|✔)"
 
     echo "No tracked" >"${hgdir}/notme"
-    test_prompt "hg untracked" "(default|…1)"
+    check "hg untracked" expect_prompt "(default|…1)"
 
     echo "Changed!" >"${FIRST_FILENAME}"
-    test_prompt "hg change" "(default|…1△1)"
+    check "hg change" expect_prompt "(default|…1△1)"
 
     echo "toooooo" >"${SECOND_FILENAME}"
-    test_prompt "hg various" "(default|…2△1)"
+    check "hg various" expect_prompt "(default|…2△1)"
 
     run_hg add "${SECOND_FILENAME}"
-    test_prompt "hg add second" "(default|…1△2)"
+    check "hg add second" expect_prompt "(default|…1△2)"
 
     run_hg commit -m "moar files"
-    test_prompt "hg commit" "(default|…1)"
+    check "hg commit" expect_prompt "(default|…1)"
 
     echo "spacey" >"${SPACES_FILENAME}"
-    test_prompt "hg spaces" "(default|…2)"
+    check "hg spaces" expect_prompt "(default|…2)"
     rm "${SPACES_FILENAME}"
 
     echo poo >"${UNICODE_FILENAME}"
-    test_prompt "hg unicode" "(default|…2)"
+    check "hg unicode" expect_prompt "(default|…2)"
     rm "${UNICODE_FILENAME}"
 
     # hg tracks deleted but not removed files, but does not
     # auto-stage them or commit them.  So treat it as an untracked.
     mv "${SECOND_FILENAME}" "${MISSING_FILENAME}"
-    test_prompt "hg missing" "(default|…3)"
+    check "hg missing" expect_prompt "(default|…3)"
     mv "${MISSING_FILENAME}" "${SECOND_FILENAME}"
 
     run_hg rename "${SECOND_FILENAME}" "${ALT_SECOND_FILENAME}"
-    test_prompt "hg rename" "(default|…1△1)"
+    check "hg rename" expect_prompt "(default|…1△1)"
 
     run_hg commit -m "save it all"
-    test_prompt "hg almost clean" "(default|…1)"
+    check "hg almost clean" expect_prompt "(default|…1)"
 
     echo "short lived third" >"${THIRD_FILENAME}"
     run_hg add "${THIRD_FILENAME}"
     run_hg commit -m "add third"
     run_hg rm "${THIRD_FILENAME}"
-    test_prompt "hg rm" "(default|…1△1)"
+    check "hg rm" expect_prompt "(default|…1△1)"
     run_hg commit -m "we did not want third"
 
     echo "notme" >"${hgdir}/.hgignore"
-    test_prompt "hg ignore" "(default|…1)"
+    check "hg ignore" expect_prompt "(default|…1)"
 
     run_hg add ".hgignore"
     run_hg commit ".hgignore" -m "nothing to see here"
-    test_prompt "hg faux clean" "(default|✔)"
+    check "hg faux clean" expect_prompt "(default|✔)"
 
     rm "${hgdir}/notme"
-    test_prompt "hg clean" "(default|✔)"
+    check "hg clean" expect_prompt "(default|✔)"
 
     run_hg branch riskychange
-    test_prompt "hg branch" "(riskychange|✔)"
+    check "hg branch" expect_prompt "(riskychange|✔)"
 
     run_hg branch --clean
-    test_prompt "hg default again" "(default|✔)"
+    check "hg default again" expect_prompt "(default|✔)"
 
     # Replace hg with a that outputs nonsense to test parsing errors.
     hg() {
         echo "branch: fooled you"
     }
     prefix="${err_prefix}"
-    test_prompt "hg bad status" "(unexpected hg summary output)"
+    check "hg bad status" expect_prompt "(unexpected hg summary output)"
 
     hg() {
         echo "commit: fooledyou"
     }
-    test_prompt "hg bad status" "(unexpected hg summary output)"
+    check "hg bad status" expect_prompt "(unexpected hg summary output)"
 
     prefix="${hg_prefix}"
     unset hg
-    test_prompt "hg back to good" "(default|✔)"
+    check "hg back to good" expect_prompt "(default|✔)"
 }
 
 
@@ -314,93 +433,93 @@ test_svn() {
 
     run_svn checkout "file://${svndir}/SVNROOT" trunk
     cd "trunk"
-    test_prompt "svn init" "(✔)"
+    check "svn init" expect_prompt "(✔)"
 
     echo "First post!" >"${FIRST_FILENAME}"
     run_svn add "${FIRST_FILENAME}"
-    test_prompt "svn add" "(△1)"
+    check "svn add" expect_prompt "(△1)"
 
     run_svn commit -m first
-    test_prompt "svn added" "(✔)"
+    check "svn added" expect_prompt "(✔)"
 
     echo "No tracked" >"${svndir}/trunk/notme"
-    test_prompt "svn untracked" "(…1)"
+    check "svn untracked" expect_prompt "(…1)"
 
     echo "Changed!" >"${FIRST_FILENAME}"
-    test_prompt "svn change" "(…1△1)"
+    check "svn change" expect_prompt "(…1△1)"
 
     echo "toooooo" >"${SECOND_FILENAME}"
-    test_prompt "svn various" "(…2△1)"
+    check "svn various" expect_prompt "(…2△1)"
 
     run_svn add "${SECOND_FILENAME}"
-    test_prompt "svn add second" "(…1△2)"
+    check "svn add second" expect_prompt "(…1△2)"
 
     run_svn commit -m "moar files"
-    test_prompt "svn commit" "(…1)"
+    check "svn commit" expect_prompt "(…1)"
 
     echo "spacey" >"${SPACES_FILENAME}"
-    test_prompt "svn spaces" "(…2)"
+    check "svn spaces" expect_prompt "(…2)"
     rm "${SPACES_FILENAME}"
 
     echo poo >"${UNICODE_FILENAME}"
-    test_prompt "svn unicode" "(…2)"
+    check "svn unicode" expect_prompt "(…2)"
     rm "${UNICODE_FILENAME}"
 
     # Like hg, svn tracks deleted but not removed files, but does not
     # auto-stage them or commit them.  So treat it as an untracked.
     mv "${SECOND_FILENAME}" "${MISSING_FILENAME}"
-    test_prompt "svn missing" "(…3)"
+    check "svn missing" expect_prompt "(…3)"
     mv "${MISSING_FILENAME}" "${SECOND_FILENAME}"
 
     # A rename counts as two changes, an add and a delete
     run_svn rename "${SECOND_FILENAME}" "${ALT_SECOND_FILENAME}"
-    test_prompt "svn rename" "(…1△2)"
+    check "svn rename" expect_prompt "(…1△2)"
 
     run_svn commit -m "save it all"
-    test_prompt "svn almost clean" "(…1)"
+    check "svn almost clean" expect_prompt "(…1)"
 
     echo "short lived third" >"${THIRD_FILENAME}"
     run_svn add "${THIRD_FILENAME}"
     run_svn commit -m "add third"
     run_svn rm "${THIRD_FILENAME}"
-    test_prompt "svn rm" "(…1△1)"
+    check "svn rm" expect_prompt "(…1△1)"
     run_svn commit -m "we did not want third"
 
     run_svn propset svn:ignore "notme" .
-    test_prompt "svn ignore" "(△1)"
+    check "svn ignore" expect_prompt "(△1)"
 
     # NOTE: The update is needed!
     # See http://subversion.apache.org/faq.html#wc-out-of-date
     run_svn update
     run_svn commit -m "nothing to see here"
-    test_prompt "svn faux clean" "(✔)"
+    check "svn faux clean" expect_prompt "(✔)"
 
     rm "${svndir}/trunk/notme"
-    test_prompt "svn clean" "(✔)"
+    check "svn clean" expect_prompt "(✔)"
 
     # Replace svn with a that outputs nonsense to test parsing errors.
     svn() {
         echo "Nonesense"
     }
     prefix="${err_prefix}"
-    test_prompt "svn bad status" "(unexpected svn status output)"
+    check "svn bad status" expect_prompt "(unexpected svn status output)"
 
     # version numbers below work as of svn 1.8.13
     # http://stackoverflow.com/questions/1364618/how-do-i-determine-the-svn-working-copy-layout-version
     unset svn
     sqlite3 "${svndir}/trunk/.svn/wc.db" "PRAGMA user_version=27"
-    test_prompt "svn upgrade needed" "('svn upgrade' needed)"
+    check "svn upgrade needed" expect_prompt "('svn upgrade' needed)"
 
     prefix="${svn_prefix}"
     sqlite3 "${svndir}/trunk/.svn/wc.db" "PRAGMA user_version=31"
-    test_prompt "svn back to good" "(✔)"
+    check "svn back to good" expect_prompt "(✔)"
 }
 
 test_all() {
-    test_none && \
-    test_git && \
-    test_hg && \
-    test_svn
+    check "Empty sandbox" test_none
+    check "git" test_git
+    check "hg" test_hg
+    check "svn" test_svn
 }
 
 test_outputs() {
@@ -418,12 +537,10 @@ test_outputs() {
     local svn_prefix=$(echo -e "\x01${BPVCS_SVN_COLOR}\x02 ")
     local err_prefix=$(echo -e "\x01${BPVCS_ERR_COLOR}\x02 ")
 
-    test_all
-    echo
+    check "chromatic" test_all
 
     # Run all tests again, this time with colors off and making sure that the
     # non-color prefixes are used.
-    echo Testing without colors
     suffix=""
     git_prefix=" git:"
     hg_prefix=" hg:"
@@ -431,7 +548,7 @@ test_outputs() {
     err_prefix=" ERR:"
     unset BPVCS_COLORS
 
-    test_all
+    check "monochrome" test_all
 
     # Clean up the temp dir.
     if [[ -n "${tmpdir}" ]]; then
@@ -451,8 +568,6 @@ shell_state() {
 }
 
 test_load_and_symbols() {
-    echo Testing sourcing and symbols
-
     # NOTE: Since this test script is run as a separate script, we don't
     # inherit any bash-prompt-vcs symbols even if it's being used on the test
     # host.
@@ -483,31 +598,29 @@ test_load_and_symbols() {
             | BPVCS_SVN_COLOR \
             | BPVCS_UNTRACKED_INDICATOR \
             | BPVCS_VERSION) ;; # these are all expected, ignore them.
-            *) printf "UNEXPECTED: ${new}\n"
+            *) failmsg "UNEXPECTED: ${new}\n"
                ((++unexpected))
                ;;
         esac
     done
 
     if [[ ${unexpected} -ne 0 ]]; then
-        echo -e "FAILED: ${unexpected} unexpected symbols when loading"
-        exit
+        failmsg "${unexpected} unexpected symbols when loading"
+        return 1
     fi
 }
 
 # Make sure the version being tested matches what we expect and is read-only.
 test_version() {
-    echo Testing version
-
     local expected_version="1.0.0"
     if [[ "${BPVCS_VERSION}" != "${expected_version}" ]]; then
-        echo "FAILED: BPVCS_VERSION of '${BPVCS_VERSION}' isn't the expected '${expected_version}'"
-        exit
+        failmsg "BPVCS_VERSION of '${BPVCS_VERSION}' isn't the expected '${expected_version}'"
+        return 1
     fi
 
     if [[ ! $(declare -p BPVCS_VERSION) =~ [[:space:]]-r[[:space:]] ]]; then
-        echo "FAILED: BPVCS_VERSION is not read-only."
-        exit
+        failmsg "BPVCS_VERSION is not read-only."
+        return 1
     fi
 }
 
@@ -515,44 +628,39 @@ test_version() {
 test_defaults() {
     # Confirm these rather than using the variables up above so the tests remain
     # somewhat readable and useful for looking at to see what the code will output.
-    echo Testing default indicators
-    if [[ "${BPVCS_UNTRACKED_INDICATOR}" != "…" ]]; then echo "FAILED: Wrong default untracked indicator"; exit; fi
-    if [[ "${BPVCS_CHANGED_INDICATOR}" != "△" ]];   then echo "FAILED: Wrong default changed indicator";   exit; fi
-    if [[ "${BPVCS_STAGED_INDICATOR}" != "●" ]];    then echo "FAILED: Wrong default staged indicator";    exit; fi
-    if [[ "${BPVCS_CLEAN_INDICATOR}" != "✔" ]];     then echo "FAILED: Wrong default clean indicator";     exit; fi
-    if [[ "${BPVCS_AHEAD_INDICATOR}" != "⇡" ]];     then echo "FAILED: Wrong default ahead indicator";     exit; fi
-    if [[ "${BPVCS_BEHIND_INDICATOR}" != "⇣" ]];    then echo "FAILED: Wrong default behind indicator";    exit; fi
+    if [[ "${BPVCS_UNTRACKED_INDICATOR}" != "…" ]]; then failmsg "Wrong default untracked indicator"; return 1; fi
+    if [[ "${BPVCS_CHANGED_INDICATOR}" != "△" ]];   then failmsg "Wrong default changed indicator";   return 1; fi
+    if [[ "${BPVCS_STAGED_INDICATOR}" != "●" ]];    then failmsg "Wrong default staged indicator";    return 1; fi
+    if [[ "${BPVCS_CLEAN_INDICATOR}" != "✔" ]];     then failmsg "Wrong default clean indicator";     return 1; fi
+    if [[ "${BPVCS_AHEAD_INDICATOR}" != "⇡" ]];     then failmsg "Wrong default ahead indicator";     return 1; fi
+    if [[ "${BPVCS_BEHIND_INDICATOR}" != "⇣" ]];    then failmsg "Wrong default behind indicator";    return 1; fi
 
     # Make sure we have default colors defined and that we default to using color.
-    echo Testing default colors
-    if [[ -z "${BPVCS_GIT_COLOR:-}" ]];   then echo "FAILED: No GIT default color!";    exit; fi
-    if [[ -z "${BPVCS_HG_COLOR:-}" ]];    then echo "FAILED: No HG default color!";     exit; fi
-    if [[ -z "${BPVCS_SVN_COLOR:-}" ]];   then echo "FAILED: No SVN default color!";    exit; fi
-    if [[ -z "${BPVCS_RESET_COLOR:-}" ]]; then echo "FAILED: No reset colors default!"; exit; fi
-    if [[ -z "${BPVCS_COLORS:-}" ]];      then echo "FAILED: No default color!";        exit; fi
+    if [[ -z "${BPVCS_GIT_COLOR:-}" ]];   then failmsg "No GIT default color!";    return 1; fi
+    if [[ -z "${BPVCS_HG_COLOR:-}" ]];    then failmsg "No HG default color!";     return 1; fi
+    if [[ -z "${BPVCS_SVN_COLOR:-}" ]];   then failmsg "No SVN default color!";    return 1; fi
+    if [[ -z "${BPVCS_RESET_COLOR:-}" ]]; then failmsg "No reset colors default!"; return 1; fi
+    if [[ -z "${BPVCS_COLORS:-}" ]];      then failmsg "No default color!";        return 1; fi
 }
 
 test_symbol_leakage() {
-    echo Testing symbol leakage after all tests run
-
     test_bpvcs_after=$(shell_state)
 
     test_bpvcs_leaked_symbols=$(comm -31 <(printf "%s" "${test_bpvcs_loaded}") \
                                          <(printf "%s" "${test_bpvcs_after}"))
 
     if [[ -n "${test_bpvcs_leaked_symbols}" ]]; then
-        printf "FAILED: Symbols leaked:\n%s\n" "${test_bpvcs_leaked_symbols}"
-        exit
+        failmsg "Symbols leaked:\n%s\n" "${test_bpvcs_leaked_symbols}"
     fi
 }
 
 main() {
-    test_load_and_symbols
-    test_version
-    test_defaults
-    test_outputs
-    test_symbol_leakage
-    echo
+    check "Sourcing and symbols" test_load_and_symbols
+    check "Version" test_version
+    check "Defaults" test_defaults
+    check "Output" test_outputs
+    check "Symbol Leakage" test_symbol_leakage
+    echo "ALL tests: OK"
 }
 
 main
