@@ -534,12 +534,16 @@ test_outputs() {
     # wrapped correctly with color prefixes and suffixes and that those
     # have the \x01 and \x02 characters that readline requires to recognize
     # non-printing characters.
+    local -r NP_ON=$'\x01'
+    local -r NP_OFF=$'\x02'
+    local -r ESC=$'\E'
+
     local prefix
-    local suffix=$(echo     -e "\x01\033[0m\x02")
-    local git_prefix=$(echo -e "\x01${BPVCS_GIT_COLOR}\x02 ")
-    local hg_prefix=$(echo  -e "\x01${BPVCS_HG_COLOR}\x02 ")
-    local svn_prefix=$(echo -e "\x01${BPVCS_SVN_COLOR}\x02 ")
-    local err_prefix=$(echo -e "\x01${BPVCS_ERR_COLOR}\x02 ")
+    local suffix="${NP_ON}${ESC}[0m${NP_OFF}"
+    local git_prefix="${NP_ON}${ESC}[0;32m${NP_OFF} "
+    local hg_prefix="${NP_ON}${ESC}[0;36m${NP_OFF} "
+    local svn_prefix="${NP_ON}${ESC}[0;35m${NP_OFF} "
+    local err_prefix="${NP_ON}${ESC}[0;31m${NP_OFF} "
 
     check "chromatic" test_all
 
