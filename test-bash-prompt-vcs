@@ -83,7 +83,7 @@ err_handler() {
 
     # set -e doesn't descend into subshells, but trap ERR does
     # (with set -o errtrace), so make sure to exit after an error.
-    exit
+    exit 1
 }
 trap err_handler ERR
 set -o errtrace
