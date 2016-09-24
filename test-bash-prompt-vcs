@@ -511,12 +511,31 @@ test_svn() {
     }
     prefix="${err_prefix}"
     check "svn bad status" expect_prompt "(unexpected svn status output)"
+    unset svn
 
+    # Expected "FAIL": Because errtrace will enable the ERR trap to propagate
+    #                  to subshells, this test will spew noise since svn
+    #                  actually will return 1 in the case of upgrade-needed.
+    #                  The "return 1" aspect propagates to the subshell but
+    #                  the "part of ||" doesn't since the || is in the parent
+    #                  and that is what prevents set -e from killing the code.
+    #
+    #                  Note that the prompt returned *is* in fact the one
+    #                  expected so the code under test does everything OK
+    #                  unless someone sets a noisy ERR trap and even then it
+    #                  will most likely work.
+    #
+    #                  So for now work-around this by temporarily disabling
+    #                  errtrace for this test.  The product code will be
+    #                  changed post-1.0.0 release to avoid the need for this.
+    #TODO: remove, see above
+    set +o errtrace
     # version numbers below work as of svn 1.8.13
     # http://stackoverflow.com/questions/1364618/how-do-i-determine-the-svn-working-copy-layout-version
-    unset svn
     sqlite3 "${svndir}/trunk/.svn/wc.db" "PRAGMA user_version=27"
     check "svn upgrade needed" expect_prompt "('svn upgrade' needed)"
+    #TODO: remove, see above
+    set -o errtrace
 
     prefix="${svn_prefix}"
     sqlite3 "${svndir}/trunk/.svn/wc.db" "PRAGMA user_version=31"
