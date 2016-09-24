@@ -218,7 +218,8 @@ run_git() {
 
 test_git() {
     prefix="${git_prefix}"
-    local gitdir=$(mktemp -d --tmpdir="${tmpdir}" test_git.XXX)
+    local gitdir
+    gitdir=$(mktemp -d --tmpdir="${tmpdir}" test_git.XXX)
     cd "${gitdir}"
 
     run_git init
@@ -301,7 +302,8 @@ test_git() {
     check "git back to good" expect_prompt "(master|✔)"
 
     # Select a home for the clone but remove it as git clone will create it.
-    local gitclonedir=$(mktemp -d --tmpdir=${tmpdir} test_gitclone.XXX)
+    local gitclonedir
+    gitclonedir=$(mktemp -d --tmpdir="${tmpdir}" test_gitclone.XXX)
     rmdir "${gitclonedir}"
     cd "${tmpdir}"
     run_git clone "${gitdir}" "${gitclonedir}"
@@ -331,7 +333,8 @@ run_hg() {
 
 test_hg() {
     prefix="${hg_prefix}"
-    local hgdir=$(mktemp -d --tmpdir="${tmpdir}" test_hg.XXX)
+    local hgdir
+    hgdir=$(mktemp -d --tmpdir="${tmpdir}" test_hg.XXX)
     cd "${hgdir}"
 
     run_hg init
@@ -431,7 +434,8 @@ run_svn() {
 
 test_svn() {
     prefix="${svn_prefix}"
-    local svndir=$(mktemp -d --tmpdir="${tmpdir}" test_svn.XXX)
+    local svndir
+    svndir=$(mktemp -d --tmpdir="${tmpdir}" test_svn.XXX)
     cd "${svndir}"
     run_svnadmin create SVNROOT
 
@@ -528,7 +532,8 @@ test_all() {
 
 test_outputs() {
     # Make a home to work in.
-    local tmpdir=$(mktemp -d --tmpdir bpvcs-test-XXX)
+    local tmpdir
+    tmpdir=$(mktemp -d --tmpdir bpvcs-test-XXX)
 
     # Run through all of the tests with color making sure the output is
     # wrapped correctly with color prefixes and suffixes and that those
