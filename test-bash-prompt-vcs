@@ -26,6 +26,9 @@
 set -e
 set -u
 
+# Include traceback printing code.
+source debug-util.bash
+
 # A set of functions to act as scaffolding for testing the prompt code.
 # Tests will run until the first failure or error, at which point the
 # error handler is called, the failure message is reported, and the process
@@ -76,6 +79,7 @@ check_handler() {
 # errors.  Make sure output from this is directed to FD 3 and not stderr.
 err_handler() {
     check_handler >&3
+    traceback 1 >&3
 
     # set -e doesn't descend into subshells, but trap ERR does
     # (with set -o errtrace), so make sure to exit after an error.
