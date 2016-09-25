@@ -81,7 +81,7 @@ traceback() {
 
         # Need to special-case the module frame as FUNCNAME reports it as
         # 'main', which is confusing if you also have a function named main.
-        if [[ ${BASH_LINENO[${calling_frame}]} -eq 0 ]]; then
+        if [[ "${BASH_LINENO[${calling_frame}]}" -eq 0 ]]; then
             called_from="<module>"
         fi
 
