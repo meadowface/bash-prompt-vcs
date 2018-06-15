@@ -43,7 +43,7 @@ BPVCS_ERR_COLOR="\033[0;31m"            # error defaults to red
 BPVCS_RESET_COLOR="\033[0m"             # reset
 BPVCS_COLORS=1                          # unset to turn off color
 
-declare -g -r BPVCS_VERSION="1.0.0"
+BPVCS_VERSION="1.1.0"
 
 bpvcs_bash_prompt() {
     local vcs               # name of VCS
@@ -169,8 +169,35 @@ bpvcs_bash_prompt() {
 
         local line
         while IFS= read -r line ; do
-            # Not an svn sandbox.
-            if [[ "${line:0:22}" = "svn: warning: W155007:" ]]; then
+            line="${line/warning: /}"   # normalize error output - remove "warning: " if existing
+            # Not a svn sandbox.
+            if [[ "${line:0:13}" = "svn: E155007:" ]] || [[ "${line:0:13}" = "svn: W155007:" ]]; then
+                return 1
+            fi
+
+            # svn upgrade needed
+            if [[ "${line:0:13}" = "svn: E155036:" ]]; then
+                error="'svn upgrade' needed"
+                return 0
+            fi
+
+
+            local field="${line%%: *}"   # remove everything after first ': '
+            local value="${line#*: }"    # remove everything before first ': '
+            if [[ "${field}" = "URL" ]]; then
+                    value="${value/branches\/}"   # remove "branches" from url
+                    value="${value/tags\/}"       # remove "tags" from url
+                    value="${value##*/}"
+                    branch="${value}"
+            fi
+        # svn info returns 0 even if not a sandbox so parse error messages
+        done < <(svn info 2>&1)
+
+        local line
+        while IFS= read -r line ; do
+            line="${line/warning: /}"   # normalize error output - remove "warning: " if existing
+            # Not a svn sandbox.
+            if [[ "${line:0:13}" = "svn: E155007:" ]] || [[ "${line:0:13}" = "svn: W155007:" ]]; then
                 return 1
             fi
 
@@ -190,7 +217,7 @@ bpvcs_bash_prompt() {
                 *) error="unexpected svn status output"; return 0 ;;
             esac
         # svn status returns 0 even if not a sandbox so parse error messages
-        done < <(svn status --depth immediates 2>&1)
+        done < <(svn status 2>&1)
 
         vcs="svn"
         return 0
@@ -222,7 +249,7 @@ bpvcs_bash_prompt() {
         case "${vcs}" in
             git)  prefix="${BPVCS_GIT_COLOR}"; vcstate="(${branch}|${vcstate})" ;;
             hg)   prefix="${BPVCS_HG_COLOR}";  vcstate="(${branch}|${vcstate})" ;;
-            svn)  prefix="${BPVCS_SVN_COLOR}"; vcstate="(${vcstate})" ;;
+            svn)  prefix="${BPVCS_SVN_COLOR}"; vcstate="(${branch}|${vcstate})" ;;
             *)    return ;;
         esac
     fi
