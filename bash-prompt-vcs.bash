@@ -217,7 +217,7 @@ bpvcs_bash_prompt() {
                 *) error="unexpected svn status output"; return 0 ;;
             esac
         # svn status returns 0 even if not a sandbox so parse error messages
-        done < <(svn status 2>&1)
+        done < <(svn status --ignore-externals 2>&1)
 
         vcs="svn"
         return 0
