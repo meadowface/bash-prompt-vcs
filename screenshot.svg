@@ -47,13 +47,13 @@
         font-style: italic;
       }
       .git {
-        fill: green;
+        fill: lime;
       }
       .hg {
         fill: cyan;
       }
       .svn {
-        fill: purple;
+        fill: magenta;
       }
     ]]></style>
   </defs>
@@ -72,7 +72,7 @@
     <tspan x="400" dy="18" class="comment"># on the refactor branch.</tspan>
 
     <tspan x="20" dy="45">user@host:/projects/clean</tspan>
-    <tspan class="svn">(✔)<tspan class="prompt">$</tspan></tspan>
+    <tspan class="svn">(trunk|✔)<tspan class="prompt">$</tspan></tspan>
     <tspan x="400" class="comment"># A clean svn sandbox.</tspan>
 
     <tspan x="20" dy="45">user@host:/code/perl</tspan>
